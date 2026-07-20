@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wishlist — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6">Wishlist</h1>
+      <div id="wishlist-grid" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "wishlist", "");
+      load();
+    }
+
+    async function load() {
+      const grid = document.getElementById("wishlist-grid");
+      grid.innerHTML = tcpSkeletonCards(6);
+      const { data } = await tcpSupabase
+        .from("wishlists")
+        .select("*, courses(*)")
+        .eq("student_id", session.user.id)
+        .order("created_at", { ascending: false });
+
+      if (!data || data.length === 0) {
+        grid.innerHTML = tcpEmptyState({
+          title: "Your wishlist is empty",
+          message: "Save courses you're interested in to come back to them later.",
+          actionLabel: "Browse courses",
+        });
+        setTimeout(() => document.getElementById("tcp-empty-action")?.addEventListener("click", () => (window.location.href = "../../courses.html")), 0);
+        return;
+      }
+
+      grid.innerHTML = data
+        .map((w) => {
+          const c = w.courses || {};
+          const price = c.discount_price != null ? c.discount_price : c.price;
+          return `
+          <div class="tcp-card overflow-hidden flex flex-col">
+            <a href="../../course-details.html?slug=${c.slug}" class="h-36 bg-gray-100 flex items-center justify-center">
+              ${
+                c.thumbnail
+                  ? `<img src="${c.thumbnail}" class="w-full h-full object-cover" alt="" />`
+                  : `<svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>`
+              }
+            </a>
+            <div class="p-4 flex-1 flex flex-col">
+              <a href="../../course-details.html?slug=${c.slug}" class="font-semibold text-sm line-clamp-2 hover:text-[#A435F0]">${c.title || "Course"}</a>
+              <p class="font-bold text-sm mt-2">${Number(price) === 0 ? "Free" : `$${Number(price).toFixed(2)}`}</p>
+              <div class="mt-auto pt-3 flex gap-2">
+                <a href="../../course-details.html?slug=${c.slug}" class="tcp-btn-primary text-xs !py-1.5 flex-1 text-center">View course</a>
+                <button data-id="${w.id}" class="remove-btn tcp-btn-secondary text-xs !py-1.5 px-3">Remove</button>
+              </div>
+            </div>
+          </div>`;
+        })
+        .join("");
+
+      grid.querySelectorAll(".remove-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          await tcpSupabase.from("wishlists").delete().eq("id", btn.dataset.id);
+          tcpToast("Removed from wishlist.", "info");
+          load();
+        })
+      );
+    }
+
+    init();
+  </script>
+</body>
+</html>

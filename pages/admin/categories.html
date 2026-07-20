@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Categories — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <h1 class="font-display text-2xl font-bold">Categories</h1>
+        <button id="new-cat-btn" class="tcp-btn-primary text-sm">+ New category</button>
+      </div>
+      <div class="tcp-card divide-y divide-gray-100" id="categories-list"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    function slugify(str) {
+      return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    }
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "categories", "");
+      document.getElementById("new-cat-btn").addEventListener("click", () => openCategoryModal());
+      load();
+    }
+
+    async function load() {
+      const el = document.getElementById("categories-list");
+      el.innerHTML = tcpSkeletonCards(3);
+      const { data } = await tcpSupabase.from("categories").select("*").order("name");
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No categories yet", actionLabel: "New category" });
+        setTimeout(() => document.getElementById("tcp-empty-action")?.addEventListener("click", () => openCategoryModal()), 0);
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (c) => `
+        <div class="flex items-center justify-between px-5 py-4">
+          <div>
+            <p class="font-medium text-sm">${c.name}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${c.description || "No description"}</p>
+          </div>
+          <div class="space-x-2 shrink-0">
+            <button data-id="${c.id}" data-name="${c.name}" data-description="${c.description || ""}" class="edit-btn text-xs font-semibold text-[#A435F0] hover:underline">Edit</button>
+            <button data-id="${c.id}" class="delete-btn text-xs font-semibold text-red-600 hover:underline">Delete</button>
+          </div>
+        </div>`
+        )
+        .join("");
+
+      el.querySelectorAll(".edit-btn").forEach((btn) =>
+        btn.addEventListener("click", () => openCategoryModal({ id: btn.dataset.id, name: btn.dataset.name, description: btn.dataset.description }))
+      );
+      el.querySelectorAll(".delete-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const ok = await tcpConfirm({ title: "Delete this category?", message: "Courses in this category will become uncategorized.", confirmLabel: "Delete", danger: true });
+          if (!ok) return;
+          await tcpSupabase.from("categories").delete().eq("id", btn.dataset.id);
+          tcpToast("Category deleted.", "success");
+          load();
+        })
+      );
+    }
+
+    function openCategoryModal(existing) {
+      const modal = tcpModal({
+        title: existing ? "Edit category" : "New category",
+        bodyHtml: `
+          <form id="cat-form" class="space-y-3">
+            <input name="name" required placeholder="Category name" class="tcp-input" value="${existing?.name || ""}" />
+            <textarea name="description" rows="3" placeholder="Short description" class="tcp-input">${existing?.description || ""}</textarea>
+          </form>
+        `,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="save-cat-btn" class="tcp-btn-primary">${existing ? "Save changes" : "Create category"}</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelector("#save-cat-btn").onclick = async () => {
+        const form = modal.querySelector("#cat-form");
+        if (!form.reportValidity()) return;
+        const data = Object.fromEntries(new FormData(form));
+        const payload = { name: data.name, description: data.description, slug: slugify(data.name) };
+        const btn = modal.querySelector("#save-cat-btn");
+        btn.disabled = true;
+        const { error } = existing
+          ? await tcpSupabase.from("categories").update(payload).eq("id", existing.id)
+          : await tcpSupabase.from("categories").insert(payload);
+        if (error) {
+          tcpToast("Couldn't save: " + error.message, "error");
+          btn.disabled = false;
+          return;
+        }
+        modal.close();
+        tcpToast(existing ? "Category updated." : "Category created.", "success");
+        load();
+      };
+    }
+
+    init();
+  </script>
+</body>
+</html>

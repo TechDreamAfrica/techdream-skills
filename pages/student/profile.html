@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile & Settings — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0 max-w-2xl">
+      <h1 class="font-display text-2xl font-bold mb-6">Profile & Settings</h1>
+
+      <section class="tcp-card p-6 mb-8">
+        <h2 class="font-semibold text-sm mb-4">Profile photo</h2>
+        <div class="flex items-center gap-4">
+          <div id="avatar-preview" class="w-16 h-16 rounded-full bg-[#A435F0] text-white font-bold text-2xl flex items-center justify-center overflow-hidden"></div>
+          <div>
+            <input type="file" id="avatar-input" accept="image/*" class="text-sm" />
+            <p class="text-xs text-gray-400 mt-1">JPG or PNG, up to 2MB.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="tcp-card p-6 mb-8">
+        <h2 class="font-semibold text-sm mb-4">Profile information</h2>
+        <form id="profile-form" class="space-y-4">
+          <div>
+            <label class="text-sm font-medium block mb-1">Full name</label>
+            <input name="fullname" class="tcp-input" required />
+          </div>
+          <div>
+            <label class="text-sm font-medium block mb-1">Email</label>
+            <input name="email" class="tcp-input" disabled />
+            <p class="text-xs text-gray-400 mt-1">Contact support to change your email.</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium block mb-1">Phone</label>
+            <input name="phone" class="tcp-input" placeholder="+233 …" />
+          </div>
+          <div>
+            <label class="text-sm font-medium block mb-1">Bio</label>
+            <textarea name="bio" rows="3" class="tcp-input" placeholder="A short bio…"></textarea>
+          </div>
+          <button type="submit" class="tcp-btn-primary">Save changes</button>
+        </form>
+      </section>
+
+      <section class="tcp-card p-6">
+        <h2 class="font-semibold text-sm mb-4">Change password</h2>
+        <form id="password-form" class="space-y-4">
+          <div>
+            <label class="text-sm font-medium block mb-1">New password</label>
+            <input name="password" type="password" minlength="6" required class="tcp-input" placeholder="At least 6 characters" />
+          </div>
+          <button type="submit" class="tcp-btn-secondary">Update password</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session, profile;
+
+    async function init() {
+      profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "profile", "");
+
+      const form = document.getElementById("profile-form");
+      form.fullname.value = profile.fullname || "";
+      form.email.value = profile.email || "";
+      form.phone.value = profile.phone || "";
+      form.bio.value = profile.bio || "";
+      renderAvatar();
+
+      form.addEventListener("submit", saveProfile);
+      document.getElementById("password-form").addEventListener("submit", savePassword);
+      document.getElementById("avatar-input").addEventListener("change", uploadAvatar);
+    }
+
+    function renderAvatar() {
+      const el = document.getElementById("avatar-preview");
+      if (profile.avatar) {
+        el.innerHTML = `<img src="${profile.avatar}" class="w-full h-full object-cover" alt="" />`;
+      } else {
+        el.textContent = (profile.fullname || "?").charAt(0).toUpperCase();
+      }
+    }
+
+    async function saveProfile(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const { error } = await tcpSupabase
+        .from("profiles")
+        .update({ fullname: data.fullname, phone: data.phone, bio: data.bio })
+        .eq("id", session.user.id);
+      if (error) return tcpToast("Couldn't save: " + error.message, "error");
+      profile.fullname = data.fullname;
+      tcpToast("Profile updated.", "success");
+    }
+
+    async function savePassword(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      try {
+        await TcpAuth.updatePassword(data.password);
+        tcpToast("Password updated.", "success");
+        e.target.reset();
+      } catch (err) {
+        tcpToast(TcpAuth.friendlyError(err), "error");
+      }
+    }
+
+    async function uploadAvatar(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) return tcpToast("File is too large — max 2MB.", "error");
+
+      const path = `${session.user.id}/avatar.${file.name.split(".").pop()}`;
+      const { error: uploadError } = await tcpSupabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (uploadError) return tcpToast("Upload failed: " + uploadError.message, "error");
+
+      const { data: urlData } = tcpSupabase.storage.from("avatars").getPublicUrl(path);
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      await tcpSupabase.from("profiles").update({ avatar: avatarUrl }).eq("id", session.user.id);
+      profile.avatar = avatarUrl;
+      renderAvatar();
+      tcpToast("Profile photo updated.", "success");
+    }
+
+    init();
+  </script>
+</body>
+</html>

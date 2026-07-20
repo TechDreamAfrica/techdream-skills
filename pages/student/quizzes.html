@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quizzes — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6">Quizzes</h1>
+      <div id="quizzes-list" class="tcp-card divide-y divide-gray-100"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "quizzes", "");
+      load();
+    }
+
+    async function load() {
+      const el = document.getElementById("quizzes-list");
+      el.innerHTML = tcpSkeletonCards(3);
+
+      const { data: enrollments } = await tcpSupabase.from("enrollments").select("course_id").eq("student_id", session.user.id);
+      const courseIds = (enrollments || []).map((e) => e.course_id);
+      if (!courseIds.length) {
+        el.innerHTML = tcpEmptyState({ title: "No quizzes available", message: "Enroll in a course to see its quizzes here." });
+        return;
+      }
+
+      const { data: quizzes } = await tcpSupabase
+        .from("quizzes")
+        .select("*, courses(title), quiz_questions(id)")
+        .in("course_id", courseIds);
+
+      const { data: attempts } = await tcpSupabase
+        .from("quiz_attempts")
+        .select("*")
+        .eq("student_id", session.user.id)
+        .not("submitted_at", "is", null);
+
+      if (!quizzes || quizzes.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No quizzes yet", message: "Your enrolled courses don't have any quizzes published yet." });
+        return;
+      }
+
+      el.innerHTML = quizzes
+        .map((q) => {
+          const bestAttempt = (attempts || [])
+            .filter((a) => a.quiz_id === q.id)
+            .sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+          return `
+          <div class="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p class="font-medium text-sm">${q.title}</p>
+              <p class="text-xs text-gray-500 mt-0.5">${q.courses?.title || ""} • ${q.quiz_questions?.length || 0} questions • Pass: ${q.passing_score}%</p>
+              ${
+                bestAttempt
+                  ? `<span class="tcp-badge mt-2 ${bestAttempt.passed ? "" : "bg-red-50 text-red-600"}">${
+                      bestAttempt.passed ? "Passed" : "Not passed"
+                    } — best score ${bestAttempt.score}%</span>`
+                  : ""
+              }
+            </div>
+            <a href="quiz-attempt.html?quiz=${q.id}" class="tcp-btn-primary text-xs !py-2 shrink-0">${bestAttempt ? "Retake" : "Start quiz"}</a>
+          </div>`;
+        })
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

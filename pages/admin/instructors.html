@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Instructors — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6">Instructors</h1>
+
+      <div class="tcp-card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3">Name</th>
+              <th class="px-5 py-3">Email</th>
+              <th class="px-5 py-3">Courses</th>
+              <th class="px-5 py-3">Status</th>
+              <th class="px-5 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="instructors-tbody" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "instructors", "");
+      load();
+    }
+
+    async function load() {
+      const tbody = document.getElementById("instructors-tbody");
+      tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">Loading…</td></tr>`;
+
+      const { data: instructors } = await tcpSupabase.from("profiles").select("*").eq("role", "instructor").order("created_at", { ascending: false });
+      if (!instructors || instructors.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">${tcpEmptyState({ title: "No instructors yet", message: "Promote a student from the Students page to get started." })}</td></tr>`;
+        return;
+      }
+
+      const counts = {};
+      await Promise.all(
+        instructors.map(async (i) => {
+          const { count } = await tcpSupabase.from("courses").select("*", { count: "exact", head: true }).eq("instructor_id", i.id);
+          counts[i.id] = count || 0;
+        })
+      );
+
+      tbody.innerHTML = instructors
+        .map(
+          (i) => `
+        <tr>
+          <td class="px-5 py-3 font-medium">${i.fullname}</td>
+          <td class="px-5 py-3 text-gray-500">${i.email}</td>
+          <td class="px-5 py-3 text-gray-500">${counts[i.id]}</td>
+          <td class="px-5 py-3">
+            ${i.is_suspended ? '<span class="tcp-badge bg-red-50 text-red-600">Suspended</span>' : '<span class="tcp-badge bg-emerald-50 text-emerald-700">Active</span>'}
+          </td>
+          <td class="px-5 py-3 text-right space-x-2 whitespace-nowrap">
+            <button data-id="${i.id}" class="promote-admin-btn text-xs font-semibold text-[#A435F0] hover:underline">Make admin</button>
+            <button data-id="${i.id}" class="demote-btn text-xs font-semibold text-gray-500 hover:underline">Demote to student</button>
+            <button data-id="${i.id}" data-suspended="${i.is_suspended}" class="suspend-btn text-xs font-semibold ${
+            i.is_suspended ? "text-emerald-600" : "text-amber-600"
+          } hover:underline">${i.is_suspended ? "Unsuspend" : "Suspend"}</button>
+          </td>
+        </tr>`
+        )
+        .join("");
+
+      tbody.querySelectorAll(".promote-admin-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const ok = await tcpConfirm({ title: "Grant admin access?", message: "They'll get full platform access, including managing other users." });
+          if (!ok) return;
+          await tcpSupabase.from("profiles").update({ role: "admin" }).eq("id", btn.dataset.id);
+          tcpToast("Instructor promoted to admin.", "success");
+          load();
+        })
+      );
+      tbody.querySelectorAll(".demote-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const ok = await tcpConfirm({ title: "Demote to student?", message: "They'll lose access to instructor tools, but keep their existing courses." });
+          if (!ok) return;
+          await tcpSupabase.from("profiles").update({ role: "student" }).eq("id", btn.dataset.id);
+          tcpToast("Instructor demoted to student.", "success");
+          load();
+        })
+      );
+      tbody.querySelectorAll(".suspend-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const nowSuspended = btn.dataset.suspended === "true";
+          await tcpSupabase.from("profiles").update({ is_suspended: !nowSuspended }).eq("id", btn.dataset.id);
+          tcpToast(nowSuspended ? "Instructor unsuspended." : "Instructor suspended.", "success");
+          load();
+        })
+      );
+    }
+
+    init();
+  </script>
+</body>
+</html>

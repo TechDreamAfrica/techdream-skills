@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Courses — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="font-display text-2xl font-bold">My Courses</h1>
+        <div class="flex gap-2 text-sm">
+          <button data-tab="all" class="tab-btn tcp-btn-secondary !py-1.5 !px-3">All</button>
+          <button data-tab="in-progress" class="tab-btn tcp-btn-secondary !py-1.5 !px-3">In progress</button>
+          <button data-tab="completed" class="tab-btn tcp-btn-secondary !py-1.5 !px-3">Completed</button>
+        </div>
+      </div>
+      <div id="courses-grid" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session, enrollments = [];
+    let activeTab = "all";
+
+    function setActiveTabStyles() {
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        const isActive = btn.dataset.tab === activeTab;
+        btn.style.background = isActive ? "#A435F0" : "";
+        btn.style.color = isActive ? "#fff" : "";
+        btn.style.borderColor = isActive ? "#A435F0" : "";
+      });
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        activeTab = btn.dataset.tab;
+        setActiveTabStyles();
+        render();
+      })
+    );
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "my-courses", "");
+      setActiveTabStyles();
+      await load();
+    }
+
+    async function load() {
+      const grid = document.getElementById("courses-grid");
+      grid.innerHTML = tcpSkeletonCards(6);
+      const { data, error } = await tcpSupabase
+        .from("enrollments")
+        .select("*, courses(*)")
+        .eq("student_id", session.user.id)
+        .order("enrolled_at", { ascending: false });
+      enrollments = data || [];
+      render();
+    }
+
+    function render() {
+      const grid = document.getElementById("courses-grid");
+      let list = enrollments;
+      if (activeTab === "in-progress") list = list.filter((e) => !e.completed_at);
+      if (activeTab === "completed") list = list.filter((e) => e.completed_at);
+
+      if (list.length === 0) {
+        grid.innerHTML = tcpEmptyState({
+          title: activeTab === "all" ? "No enrolled courses yet" : `No ${activeTab.replace("-", " ")} courses`,
+          message: "Browse the catalog to find your next course.",
+          actionLabel: "Browse courses",
+        });
+        setTimeout(() => document.getElementById("tcp-empty-action")?.addEventListener("click", () => (window.location.href = "../../courses.html")), 0);
+        return;
+      }
+
+      grid.innerHTML = list
+        .map((e) => {
+          const c = e.courses || {};
+          return `
+          <div class="tcp-card overflow-hidden flex flex-col">
+            <a href="course-player.html?course=${e.course_id}" class="h-36 bg-gray-100 flex items-center justify-center">
+              ${
+                c.thumbnail
+                  ? `<img src="${c.thumbnail}" class="w-full h-full object-cover" alt="" />`
+                  : `<svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>`
+              }
+            </a>
+            <div class="p-4 flex-1 flex flex-col">
+              <a href="course-player.html?course=${e.course_id}" class="font-semibold text-sm line-clamp-2 hover:text-[#A435F0]">${c.title || "Course"}</a>
+              <div class="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                <div class="h-full bg-[#A435F0]" style="width:${e.progress_percent || 0}%"></div>
+              </div>
+              <p class="text-xs text-gray-500 mt-1.5">${Math.round(e.progress_percent || 0)}% complete ${e.completed_at ? "• Completed" : ""}</p>
+              <div class="mt-auto pt-3 flex gap-2">
+                <a href="course-player.html?course=${e.course_id}" class="tcp-btn-primary text-xs !py-1.5 flex-1 text-center">${
+            e.completed_at ? "Review" : "Continue"
+          }</a>
+                ${e.completed_at ? `<a href="certificates.html" class="tcp-btn-secondary text-xs !py-1.5 flex-1 text-center">Certificate</a>` : ""}
+              </div>
+            </div>
+          </div>`;
+        })
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

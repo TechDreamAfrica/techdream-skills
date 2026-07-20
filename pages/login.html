@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-md mx-auto px-4 py-16">
+    <h1 class="font-display text-3xl font-bold text-center">Welcome back</h1>
+    <p class="text-center text-gray-500 mt-2 text-sm">Log in to continue your courses.</p>
+
+    <div id="suspended-banner" class="hidden mt-6 rounded-lg bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3">
+      Your account has been suspended. Contact support if you believe this is a mistake.
+    </div>
+
+    <form id="login-form" class="mt-8 space-y-4" novalidate>
+      <div>
+        <label for="email" class="text-sm font-medium block mb-1">Email</label>
+        <input id="email" name="email" type="email" required class="tcp-input" placeholder="you@example.com" />
+      </div>
+      <div>
+        <label for="password" class="text-sm font-medium block mb-1">Password</label>
+        <input id="password" name="password" type="password" required class="tcp-input" placeholder="Your password" />
+      </div>
+      <div class="flex items-center justify-between text-sm">
+        <label class="flex items-center gap-2 text-gray-600">
+          <input type="checkbox" name="remember" checked />
+          Remember me
+        </label>
+        <a href="forgot-password.html" class="text-[#A435F0] font-semibold hover:underline">Forgot password?</a>
+      </div>
+      <button type="submit" id="login-submit" class="tcp-btn-primary w-full">Log in</button>
+    </form>
+
+    <p class="text-center text-sm text-gray-500 mt-6">
+      New here? <a href="register.html" class="text-[#A435F0] font-semibold hover:underline">Create an account</a>
+    </p>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../assets/js/supabase-client.js"></script>
+  <script src="../assets/js/ui.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("../");
+    tcpRenderFooter("../");
+
+    if (new URLSearchParams(window.location.search).get("suspended") === "1") {
+      document.getElementById("suspended-banner").classList.remove("hidden");
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("login-submit");
+      const data = Object.fromEntries(new FormData(e.target));
+      btn.disabled = true;
+      btn.textContent = "Logging in…";
+      try {
+        await TcpAuth.logIn({
+          email: data.email,
+          password: data.password,
+          rememberMe: !!data.remember,
+        });
+        const profile = await TcpAuth.getProfile();
+        tcpToast("Welcome back!", "success");
+        setTimeout(() => {
+          window.location.href = profile?.role === "admin" ? "admin/dashboard.html" : "student/dashboard.html";
+        }, 600);
+      } catch (err) {
+        tcpToast(TcpAuth.friendlyError(err), "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Log in";
+      }
+    });
+  </script>
+</body>
+</html>

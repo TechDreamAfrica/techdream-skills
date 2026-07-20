@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 id="welcome-heading" class="font-display text-2xl font-bold mb-1">Welcome back</h1>
+      <p class="text-gray-500 text-sm mb-8">Here's where you left off.</p>
+
+      <!-- STATS -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Enrolled courses</p>
+          <p id="stat-enrolled" class="text-2xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Completed</p>
+          <p id="stat-completed" class="text-2xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Certificates</p>
+          <p id="stat-certificates" class="text-2xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Avg. progress</p>
+          <p id="stat-progress" class="text-2xl font-bold mt-1">—</p>
+        </div>
+      </div>
+
+      <!-- CONTINUE LEARNING -->
+      <section class="mb-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display text-lg font-bold">Continue learning</h2>
+          <a href="my-courses.html" class="text-sm font-semibold text-[#A435F0] hover:underline">View all →</a>
+        </div>
+        <div id="continue-learning-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+      </section>
+
+      <!-- RECENT NOTIFICATIONS -->
+      <section>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-display text-lg font-bold">Recent notifications</h2>
+          <a href="notifications.html" class="text-sm font-semibold text-[#A435F0] hover:underline">View all →</a>
+        </div>
+        <div id="notifications-list" class="tcp-card divide-y divide-gray-100"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let profile, session;
+
+    async function init() {
+      profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+
+      renderStudentSidebar("student-sidebar", "dashboard", "../../pages/student/");
+      document.getElementById("welcome-heading").textContent = `Welcome back, ${profile.fullname.split(" ")[0]}`;
+
+      loadStats();
+      loadContinueLearning();
+      loadNotifications();
+    }
+
+    async function loadStats() {
+      const { data: enrollments } = await tcpSupabase.from("enrollments").select("*").eq("student_id", session.user.id);
+      const { count: certCount } = await tcpSupabase
+        .from("certificates")
+        .select("*", { count: "exact", head: true })
+        .eq("student_id", session.user.id);
+
+      const enrolledCount = enrollments?.length || 0;
+      const completedCount = enrollments?.filter((e) => e.completed_at).length || 0;
+      const avgProgress = enrolledCount
+        ? Math.round(enrollments.reduce((sum, e) => sum + Number(e.progress_percent || 0), 0) / enrolledCount)
+        : 0;
+
+      document.getElementById("stat-enrolled").textContent = enrolledCount;
+      document.getElementById("stat-completed").textContent = completedCount;
+      document.getElementById("stat-certificates").textContent = certCount || 0;
+      document.getElementById("stat-progress").textContent = `${avgProgress}%`;
+    }
+
+    async function loadContinueLearning() {
+      const grid = document.getElementById("continue-learning-grid");
+      grid.innerHTML = tcpSkeletonCards(3);
+
+      const { data, error } = await tcpSupabase
+        .from("enrollments")
+        .select("*, courses(*)")
+        .eq("student_id", session.user.id)
+        .order("enrolled_at", { ascending: false })
+        .limit(3);
+
+      if (error || !data || data.length === 0) {
+        grid.innerHTML = tcpEmptyState({
+          title: "You haven't enrolled in any courses yet",
+          message: "Browse the catalog and start learning something new today.",
+          actionLabel: "Browse courses",
+        });
+        setTimeout(() => document.getElementById("tcp-empty-action")?.addEventListener("click", () => (window.location.href = "../../courses.html")), 0);
+        return;
+      }
+
+      grid.innerHTML = data
+        .map(
+          (e) => `
+        <a href="course-player.html?course=${e.course_id}" class="tcp-card overflow-hidden flex flex-col">
+          <div class="h-32 bg-gray-100 flex items-center justify-center">
+            ${
+              e.courses?.thumbnail
+                ? `<img src="${e.courses.thumbnail}" class="w-full h-full object-cover" alt="" />`
+                : `<svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>`
+            }
+          </div>
+          <div class="p-4">
+            <p class="font-semibold text-sm line-clamp-2">${e.courses?.title || "Course"}</p>
+            <div class="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+              <div class="h-full bg-[#A435F0]" style="width:${e.progress_percent || 0}%"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1.5">${Math.round(e.progress_percent || 0)}% complete</p>
+          </div>
+        </a>`
+        )
+        .join("");
+    }
+
+    async function loadNotifications() {
+      const el = document.getElementById("notifications-list");
+      const { data } = await tcpSupabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No notifications yet" });
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (n) => `
+        <a href="${n.link || "#"}" class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 ${n.is_read ? "" : "bg-purple-50/40"}">
+          <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.is_read ? "bg-gray-300" : "bg-[#A435F0]"}"></span>
+          <div>
+            <p class="text-sm font-medium">${n.title}</p>
+            ${n.body ? `<p class="text-xs text-gray-500 mt-0.5">${n.body}</p>` : ""}
+          </div>
+        </a>`
+        )
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

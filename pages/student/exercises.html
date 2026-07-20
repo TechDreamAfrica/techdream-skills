@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exercises — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6">Coding Exercises</h1>
+      <div id="exercises-list" class="tcp-card divide-y divide-gray-100"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "exercises", "");
+      load();
+    }
+
+    async function load() {
+      const el = document.getElementById("exercises-list");
+      el.innerHTML = tcpSkeletonCards(3);
+
+      const { data: enrollments } = await tcpSupabase.from("enrollments").select("course_id").eq("student_id", session.user.id);
+      const courseIds = (enrollments || []).map((e) => e.course_id);
+      if (!courseIds.length) {
+        el.innerHTML = tcpEmptyState({ title: "No exercises available", message: "Enroll in a course to see its coding exercises here." });
+        return;
+      }
+
+      const { data: exercises } = await tcpSupabase.from("coding_exercises").select("*, courses(title)").in("course_id", courseIds);
+      const { data: submissions } = await tcpSupabase
+        .from("exercise_submissions")
+        .select("*")
+        .eq("student_id", session.user.id)
+        .order("submitted_at", { ascending: false });
+
+      if (!exercises || exercises.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No exercises yet", message: "Your enrolled courses don't have coding exercises published yet." });
+        return;
+      }
+
+      el.innerHTML = exercises
+        .map((ex) => {
+          const latest = (submissions || []).find((s) => s.exercise_id === ex.id);
+          let statusBadge = "";
+          if (latest) {
+            statusBadge = latest.is_draft
+              ? `<span class="tcp-badge bg-amber-50 text-amber-700">Draft saved</span>`
+              : latest.feedback
+              ? `<span class="tcp-badge bg-emerald-50 text-emerald-700">Reviewed</span>`
+              : `<span class="tcp-badge">Submitted</span>`;
+          }
+          return `
+          <div class="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p class="font-medium text-sm">${ex.title}</p>
+              <p class="text-xs text-gray-500 mt-0.5">${ex.courses?.title || ""} • ${ex.language}</p>
+              <div class="mt-2">${statusBadge}</div>
+            </div>
+            <a href="exercise-workspace.html?exercise=${ex.id}" class="tcp-btn-primary text-xs !py-2 shrink-0">${latest ? "Continue" : "Start"}</a>
+          </div>`;
+        })
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

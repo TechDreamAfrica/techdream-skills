@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grading Queue — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-1">Grading queue</h1>
+      <p class="text-gray-500 text-sm mb-6">Pending assignments and coding exercises awaiting review.</p>
+
+      <div class="flex gap-2 mb-6 text-sm">
+        <button data-tab="assignments" class="tab-btn tcp-btn-secondary !py-1.5 !px-3">Assignments</button>
+        <button data-tab="exercises" class="tab-btn tcp-btn-secondary !py-1.5 !px-3">Exercises</button>
+      </div>
+
+      <div id="assignments-panel" class="tcp-card divide-y divide-gray-100"></div>
+      <div id="exercises-panel" class="tcp-card divide-y divide-gray-100 hidden"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let activeTab = "assignments";
+
+    function setActiveTabStyles() {
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        const isActive = btn.dataset.tab === activeTab;
+        btn.style.background = isActive ? "#A435F0" : "";
+        btn.style.color = isActive ? "#fff" : "";
+        btn.style.borderColor = isActive ? "#A435F0" : "";
+      });
+      document.getElementById("assignments-panel").classList.toggle("hidden", activeTab !== "assignments");
+      document.getElementById("exercises-panel").classList.toggle("hidden", activeTab !== "exercises");
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        activeTab = btn.dataset.tab;
+        setActiveTabStyles();
+      })
+    );
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "grading", "");
+      setActiveTabStyles();
+      loadAssignments();
+      loadExercises();
+    }
+
+    async function loadAssignments() {
+      const el = document.getElementById("assignments-panel");
+      el.innerHTML = tcpSkeletonCards(3);
+      const { data } = await tcpSupabase
+        .from("assignment_submissions")
+        .select("*, profiles:student_id(fullname), assignments(title, max_score, courses(title))")
+        .in("status", ["pending", "needs_revision"])
+        .order("submitted_at", { ascending: true });
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "Nothing to grade", message: "All assignment submissions are reviewed." });
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (s) => `
+        <div class="flex items-center justify-between gap-4 px-5 py-4">
+          <div>
+            <p class="font-medium text-sm">${s.assignments?.title || "Assignment"}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${s.profiles?.fullname || "Student"} • ${s.assignments?.courses?.title || ""}</p>
+            <a href="${s.file_url}" target="_blank" class="text-xs text-[#A435F0] hover:underline">View submitted file →</a>
+          </div>
+          <button data-id="${s.id}" data-max="${s.assignments?.max_score || 100}" data-title="${s.assignments?.title || ""}" class="grade-btn tcp-btn-primary text-xs !py-2 shrink-0">Grade</button>
+        </div>`
+        )
+        .join("");
+
+      el.querySelectorAll(".grade-btn").forEach((btn) => btn.addEventListener("click", () => openGradeModal(btn.dataset)));
+    }
+
+    function openGradeModal(ds) {
+      const modal = tcpModal({
+        title: `Grade: ${ds.title}`,
+        bodyHtml: `
+          <form id="grade-form" class="space-y-3">
+            <div>
+              <label class="text-sm font-medium block mb-1">Score (out of ${ds.max})</label>
+              <input name="score" type="number" min="0" max="${ds.max}" class="tcp-input" />
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Decision</label>
+              <select name="status" class="tcp-input">
+                <option value="approved">Approve</option>
+                <option value="needs_revision">Needs revision</option>
+                <option value="rejected">Reject</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Feedback</label>
+              <textarea name="feedback" rows="3" class="tcp-input" placeholder="Comments for the student"></textarea>
+            </div>
+          </form>
+        `,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="save-grade-btn" class="tcp-btn-primary">Save grade</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelector("#save-grade-btn").onclick = async () => {
+        const form = modal.querySelector("#grade-form");
+        const data = Object.fromEntries(new FormData(form));
+        const btn = modal.querySelector("#save-grade-btn");
+        btn.disabled = true;
+        const { data: sub, error } = await tcpSupabase
+          .from("assignment_submissions")
+          .update({
+            score: data.score ? Number(data.score) : null,
+            status: data.status,
+            feedback: data.feedback,
+            graded_at: new Date().toISOString(),
+          })
+          .eq("id", ds.id)
+          .select("student_id, assignments(title)")
+          .single();
+        if (!error && sub) {
+          await tcpSupabase.from("notifications").insert({
+            user_id: sub.student_id,
+            type: "assignment_graded",
+            title: "Your assignment was graded",
+            body: `${sub.assignments?.title || "Your assignment"} has been reviewed.`,
+            link: "pages/student/assignments.html",
+          });
+        }
+        modal.close();
+        tcpToast("Grade saved.", "success");
+        loadAssignments();
+      };
+    }
+
+    async function loadExercises() {
+      const el = document.getElementById("exercises-panel");
+      el.innerHTML = tcpSkeletonCards(3);
+      const { data } = await tcpSupabase
+        .from("exercise_submissions")
+        .select("*, profiles:student_id(fullname), coding_exercises(title, courses(title))")
+        .eq("is_draft", false)
+        .is("feedback", null)
+        .order("submitted_at", { ascending: true });
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "Nothing to review", message: "All coding exercise submissions have feedback." });
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (s) => `
+        <div class="px-5 py-4">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <p class="font-medium text-sm">${s.coding_exercises?.title || "Exercise"}</p>
+              <p class="text-xs text-gray-500 mt-0.5">${s.profiles?.fullname || "Student"} • ${s.coding_exercises?.courses?.title || ""}</p>
+            </div>
+            <button data-id="${s.id}" data-title="${s.coding_exercises?.title || ""}" class="review-btn tcp-btn-primary text-xs !py-2 shrink-0">Review</button>
+          </div>
+          <pre class="mt-3 text-xs bg-[#1c1d1f] text-gray-100 rounded-lg p-3 overflow-x-auto max-h-40">${(s.code || "").replace(/</g, "&lt;")}</pre>
+        </div>`
+        )
+        .join("");
+
+      el.querySelectorAll(".review-btn").forEach((btn) => btn.addEventListener("click", () => openFeedbackModal(btn.dataset)));
+    }
+
+    function openFeedbackModal(ds) {
+      const modal = tcpModal({
+        title: `Feedback: ${ds.title}`,
+        bodyHtml: `<textarea id="feedback-textarea" rows="4" class="tcp-input" placeholder="Leave feedback on this solution…"></textarea>`,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="save-feedback-btn" class="tcp-btn-primary">Save feedback</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelector("#save-feedback-btn").onclick = async () => {
+        const feedback = modal.querySelector("#feedback-textarea").value.trim();
+        if (!feedback) return;
+        await tcpSupabase.from("exercise_submissions").update({ feedback }).eq("id", ds.id);
+        modal.close();
+        tcpToast("Feedback saved.", "success");
+        loadExercises();
+      };
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0 max-w-xl">
+      <h1 class="font-display text-2xl font-bold mb-6">Website Settings</h1>
+
+      <form id="settings-form" class="tcp-card p-6 space-y-4">
+        <div>
+          <label class="text-sm font-medium block mb-1">Site name</label>
+          <input name="site_name" class="tcp-input" />
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Currency</label>
+          <input name="site_currency" class="tcp-input" placeholder="USD" />
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Platform fee (%)</label>
+          <input name="platform_fee_percent" type="number" min="0" max="100" class="tcp-input" />
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Support email</label>
+          <input name="support_email" type="email" class="tcp-input" />
+        </div>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="maintenance_mode" />
+          Maintenance mode (shows a banner to all visitors)
+        </label>
+        <button type="submit" class="tcp-btn-primary">Save settings</button>
+      </form>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "settings", "");
+      await loadSettings();
+      document.getElementById("settings-form").addEventListener("submit", saveSettings);
+    }
+
+    async function loadSettings() {
+      const { data } = await tcpSupabase.from("settings").select("*");
+      const map = Object.fromEntries((data || []).map((s) => [s.key, s.value]));
+      const form = document.getElementById("settings-form");
+      form.site_name.value = unwrap(map.site_name) || "The Coding Professionals";
+      form.site_currency.value = unwrap(map.site_currency) || "USD";
+      form.platform_fee_percent.value = unwrap(map.platform_fee_percent) ?? 20;
+      form.support_email.value = unwrap(map.support_email) || "";
+      form.maintenance_mode.checked = !!unwrap(map.maintenance_mode);
+    }
+
+    function unwrap(v) {
+      return typeof v === "string" && v.startsWith('"') ? JSON.parse(v) : v;
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const rows = [
+        { key: "site_name", value: data.site_name },
+        { key: "site_currency", value: data.site_currency },
+        { key: "platform_fee_percent", value: Number(data.platform_fee_percent) },
+        { key: "support_email", value: data.support_email },
+        { key: "maintenance_mode", value: e.target.maintenance_mode.checked },
+      ];
+      const { error } = await tcpSupabase.from("settings").upsert(rows.map((r) => ({ key: r.key, value: r.value, updated_at: new Date().toISOString() })));
+      if (error) return tcpToast("Couldn't save: " + error.message, "error");
+      tcpToast("Settings saved.", "success");
+    }
+
+    init();
+  </script>
+</body>
+</html>

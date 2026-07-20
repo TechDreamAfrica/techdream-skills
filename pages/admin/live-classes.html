@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Classes — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <h1 class="font-display text-2xl font-bold">Live Classes</h1>
+        <button id="new-btn" class="tcp-btn-primary text-sm">+ Schedule class</button>
+      </div>
+      <div class="tcp-card divide-y divide-gray-100" id="list"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let courses = [];
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "live-classes", "");
+      const { data } = await tcpSupabase.from("courses").select("id, title").order("title");
+      courses = data || [];
+      document.getElementById("new-btn").addEventListener("click", openNewModal);
+      load();
+    }
+
+    async function load() {
+      const el = document.getElementById("list");
+      el.innerHTML = tcpSkeletonCards(3);
+      const { data } = await tcpSupabase.from("live_classes").select("*, courses(title)").order("scheduled_at", { ascending: false });
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No live classes scheduled", actionLabel: "Schedule class" });
+        setTimeout(() => document.getElementById("tcp-empty-action")?.addEventListener("click", openNewModal), 0);
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (c) => `
+        <div class="flex items-center justify-between gap-4 px-5 py-4">
+          <div>
+            <p class="font-medium text-sm">${c.title}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${c.courses?.title || ""} • ${new Date(c.scheduled_at).toLocaleString()} • ${c.duration_minutes} min</p>
+          </div>
+          <div class="space-x-2 shrink-0">
+            <button data-id="${c.id}" data-replay="${c.replay_url || ""}" class="replay-btn text-xs font-semibold text-[#A435F0] hover:underline">Add replay link</button>
+            <button data-id="${c.id}" class="delete-btn text-xs font-semibold text-red-600 hover:underline">Delete</button>
+          </div>
+        </div>`
+        )
+        .join("");
+
+      el.querySelectorAll(".delete-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const ok = await tcpConfirm({ title: "Delete this live class?", confirmLabel: "Delete", danger: true });
+          if (!ok) return;
+          await tcpSupabase.from("live_classes").delete().eq("id", btn.dataset.id);
+          tcpToast("Live class deleted.", "success");
+          load();
+        })
+      );
+      el.querySelectorAll(".replay-btn").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const url = prompt("Replay URL:", btn.dataset.replay || "");
+          if (url === null) return;
+          await tcpSupabase.from("live_classes").update({ replay_url: url }).eq("id", btn.dataset.id);
+          tcpToast("Replay link saved.", "success");
+          load();
+        })
+      );
+    }
+
+    function openNewModal() {
+      const modal = tcpModal({
+        title: "Schedule a live class",
+        bodyHtml: `
+          <form id="lc-form" class="space-y-3">
+            <select name="course_id" required class="tcp-input">
+              <option value="">Select course</option>
+              ${courses.map((c) => `<option value="${c.id}">${c.title}</option>`).join("")}
+            </select>
+            <input name="title" required placeholder="Session title" class="tcp-input" />
+            <input name="meeting_link" required placeholder="Meeting link (Zoom, Meet, etc.)" class="tcp-input" />
+            <div class="grid grid-cols-2 gap-3">
+              <input name="scheduled_at" type="datetime-local" required class="tcp-input" />
+              <input name="duration_minutes" type="number" min="15" value="60" class="tcp-input" placeholder="Duration (min)" />
+            </div>
+          </form>
+        `,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="save-btn" class="tcp-btn-primary">Schedule</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelector("#save-btn").onclick = async () => {
+        const form = modal.querySelector("#lc-form");
+        if (!form.reportValidity()) return;
+        const data = Object.fromEntries(new FormData(form));
+        const btn = modal.querySelector("#save-btn");
+        btn.disabled = true;
+        const { error } = await tcpSupabase.from("live_classes").insert({
+          course_id: data.course_id,
+          title: data.title,
+          meeting_link: data.meeting_link,
+          scheduled_at: new Date(data.scheduled_at).toISOString(),
+          duration_minutes: Number(data.duration_minutes) || 60,
+        });
+        if (error) {
+          tcpToast("Couldn't schedule: " + error.message, "error");
+          btn.disabled = false;
+          return;
+        }
+        modal.close();
+        tcpToast("Live class scheduled.", "success");
+        load();
+      };
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Course Player — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div id="player-loading" class="max-w-7xl mx-auto px-4 py-16 text-center text-gray-400">Loading course…</div>
+
+  <div id="player-shell" class="hidden lg:grid lg:grid-cols-[1fr_340px] h-[calc(100vh-64px)]">
+    <!-- MAIN -->
+    <div class="overflow-y-auto">
+      <div class="bg-black aspect-video flex items-center justify-center relative">
+        <video id="lesson-video" class="w-full h-full" controls></video>
+        <div id="video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
+          <svg class="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Z"/></svg>
+          <p class="text-sm">No video attached to this lesson yet</p>
+        </div>
+      </div>
+
+      <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
+        <h1 id="lesson-title" class="font-display text-xl font-bold"></h1>
+        <div class="flex items-center gap-2">
+          <button id="prev-lesson" class="tcp-btn-secondary text-sm !py-2">← Previous</button>
+          <button id="mark-complete" class="tcp-btn-primary text-sm !py-2">Mark complete</button>
+          <button id="next-lesson" class="tcp-btn-secondary text-sm !py-2">Next →</button>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="px-6 pt-4 flex gap-6 text-sm font-medium border-b border-gray-100" id="tabs">
+        <button data-tab="overview" class="tab-btn pb-3 border-b-2 border-[#A435F0] text-[#A435F0]">Overview</button>
+        <button data-tab="notes" class="tab-btn pb-3 border-b-2 border-transparent text-gray-500">My notes</button>
+        <button data-tab="resources" class="tab-btn pb-3 border-b-2 border-transparent text-gray-500">Resources</button>
+        <button data-tab="discussion" class="tab-btn pb-3 border-b-2 border-transparent text-gray-500">Discussion</button>
+      </div>
+
+      <div class="px-6 py-6">
+        <div id="tab-overview" class="tab-panel">
+          <p id="lesson-content" class="text-sm text-gray-600 whitespace-pre-line"></p>
+          <button id="bookmark-btn" class="mt-4 text-sm font-semibold text-[#A435F0] hover:underline flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"/></svg>
+            <span id="bookmark-label">Bookmark this lesson</span>
+          </button>
+        </div>
+
+        <div id="tab-notes" class="tab-panel hidden">
+          <textarea id="notes-textarea" rows="8" class="tcp-input" placeholder="Write private notes for this lesson… (auto-saved to your bookmark)"></textarea>
+          <button id="save-note" class="tcp-btn-primary text-sm mt-3">Save note</button>
+        </div>
+
+        <div id="tab-resources" class="tab-panel hidden">
+          <div id="resources-list" class="space-y-2"></div>
+        </div>
+
+        <div id="tab-discussion" class="tab-panel hidden">
+          <form id="discussion-form" class="mb-6 space-y-2">
+            <input id="discussion-title" class="tcp-input" placeholder="Question title" required />
+            <textarea id="discussion-body" rows="3" class="tcp-input" placeholder="Ask a question about this lesson…" required></textarea>
+            <button class="tcp-btn-primary text-sm">Post question</button>
+          </form>
+          <div id="discussion-list" class="space-y-5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CURRICULUM SIDEBAR -->
+    <aside class="border-l border-gray-100 overflow-y-auto">
+      <div class="px-5 py-4 border-b border-gray-100">
+        <a id="back-to-course" href="#" class="text-xs text-gray-500 hover:text-[#A435F0]">← Back to course details</a>
+        <h2 id="course-title-sidebar" class="font-semibold text-sm mt-1"></h2>
+        <div class="w-full h-1.5 bg-gray-100 rounded-full mt-3 overflow-hidden">
+          <div id="sidebar-progress-bar" class="h-full bg-[#A435F0]" style="width:0%"></div>
+        </div>
+        <p id="sidebar-progress-text" class="text-xs text-gray-500 mt-1.5"></p>
+      </div>
+      <div id="curriculum-sidebar"></div>
+    </aside>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const qp = new URLSearchParams(window.location.search);
+    const courseId = qp.get("course");
+    const requestedLessonId = qp.get("lesson");
+
+    let session, course, sections = [], allLessons = [], enrollment, currentLesson;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+
+      if (!courseId) return (window.location.href = "my-courses.html");
+
+      const { data: c } = await tcpSupabase.from("courses").select("*").eq("id", courseId).single();
+      if (!c) return (window.location.href = "my-courses.html");
+      course = c;
+
+      const { data: enr } = await tcpSupabase
+        .from("enrollments")
+        .select("*")
+        .eq("student_id", session.user.id)
+        .eq("course_id", courseId)
+        .maybeSingle();
+      if (!enr) {
+        tcpToast("You need to enroll in this course first.", "error");
+        return (window.location.href = `../../course-details.html?slug=${course.slug}`);
+      }
+      enrollment = enr;
+
+      const { data: secs } = await tcpSupabase
+        .from("course_sections")
+        .select("*, lessons(*)")
+        .eq("course_id", courseId)
+        .order("position");
+      sections = (secs || []).map((s) => ({ ...s, lessons: (s.lessons || []).sort((a, b) => a.position - b.position) }));
+      allLessons = sections.flatMap((s) => s.lessons);
+
+      document.getElementById("player-loading").classList.add("hidden");
+      document.getElementById("player-shell").classList.remove("hidden");
+      document.getElementById("back-to-course").href = `../../course-details.html?slug=${course.slug}`;
+      document.getElementById("course-title-sidebar").textContent = course.title;
+
+      renderSidebar();
+      updateProgressUI();
+
+      const startLesson = allLessons.find((l) => l.id === requestedLessonId) || allLessons.find((l) => l.id === enrollment.last_lesson_id) || allLessons[0];
+      if (startLesson) selectLesson(startLesson.id);
+
+      setupTabs();
+      setupNav();
+    }
+
+    function renderSidebar() {
+      const el = document.getElementById("curriculum-sidebar");
+      el.innerHTML = sections
+        .map(
+          (s) => `
+        <details open>
+          <summary class="cursor-pointer list-none px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">${s.title}</summary>
+          <div>
+            ${s.lessons
+              .map((l) => {
+                const done = (enrollment.completed_lesson_ids || []).includes(l.id);
+                return `
+              <button data-lesson-id="${l.id}" class="lesson-item w-full text-left px-5 py-3 flex items-center gap-3 text-sm hover:bg-gray-50 border-l-2 border-transparent">
+                <span class="w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
+                  done ? "bg-[#A435F0] border-[#A435F0]" : "border-gray-300"
+                }">
+                  ${done ? '<svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L9 11.58l6.3-6.3a1 1 0 0 1 1.4 0Z"/></svg>' : ""}
+                </span>
+                <span class="flex-1">${l.title}</span>
+                <span class="text-xs text-gray-400">${Math.round((l.duration_seconds || 0) / 60)}m</span>
+              </button>`;
+              })
+              .join("")}
+          </div>
+        </details>`
+        )
+        .join("");
+
+      el.querySelectorAll(".lesson-item").forEach((btn) => btn.addEventListener("click", () => selectLesson(btn.dataset.lessonId)));
+    }
+
+    function highlightActiveLesson() {
+      document.querySelectorAll(".lesson-item").forEach((btn) => {
+        const active = btn.dataset.lessonId === currentLesson.id;
+        btn.classList.toggle("border-[#A435F0]", active);
+        btn.classList.toggle("bg-purple-50/50", active);
+        btn.classList.toggle("font-semibold", active);
+      });
+    }
+
+    async function selectLesson(lessonId) {
+      const lesson = allLessons.find((l) => l.id === lessonId);
+      if (!lesson) return;
+      currentLesson = lesson;
+      highlightActiveLesson();
+
+      document.getElementById("lesson-title").textContent = lesson.title;
+      document.getElementById("lesson-content").textContent = lesson.content || "No written summary for this lesson yet.";
+
+      const video = document.getElementById("lesson-video");
+      const placeholder = document.getElementById("video-placeholder");
+      if (lesson.video_url) {
+        video.src = lesson.video_url;
+        video.classList.remove("hidden");
+        placeholder.classList.add("hidden");
+      } else {
+        video.classList.add("hidden");
+        placeholder.classList.remove("hidden");
+      }
+
+      renderResources(lesson.resources || []);
+      loadDiscussion();
+      loadBookmarkState();
+      updateNavButtons();
+
+      // autosave "last viewed lesson"
+      await tcpSupabase.from("enrollments").update({ last_lesson_id: lesson.id }).eq("id", enrollment.id);
+
+      const url = new URL(window.location);
+      url.searchParams.set("lesson", lesson.id);
+      window.history.replaceState({}, "", url);
+
+      document.getElementById("tab-overview").scrollIntoView({ block: "start" });
+    }
+
+    function renderResources(resources) {
+      const el = document.getElementById("resources-list");
+      if (!resources.length) {
+        el.innerHTML = tcpEmptyState({ title: "No downloadable resources for this lesson" });
+        return;
+      }
+      el.innerHTML = resources
+        .map(
+          (r) => `
+        <a href="${r.url}" target="_blank" class="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+          <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 12m0 0 4.5-4.5M12 12V3"/></svg>
+          <span class="text-sm font-medium">${r.name || "Download"}</span>
+        </a>`
+        )
+        .join("");
+    }
+
+    async function loadDiscussion() {
+      const el = document.getElementById("discussion-list");
+      el.innerHTML = tcpSkeletonCards(2);
+      const { data } = await tcpSupabase
+        .from("course_discussions")
+        .select("*, profiles:student_id(fullname), discussion_replies(*, profiles:author_id(fullname))")
+        .eq("lesson_id", currentLesson.id)
+        .order("created_at", { ascending: false });
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No questions yet", message: "Be the first to ask about this lesson." });
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (d) => `
+        <div class="border border-gray-100 rounded-lg p-4">
+          <p class="font-semibold text-sm">${d.title}</p>
+          <p class="text-xs text-gray-500 mt-0.5">${d.profiles?.fullname || "Student"}</p>
+          <p class="text-sm text-gray-700 mt-2">${d.body}</p>
+          ${
+            (d.discussion_replies || []).length
+              ? `<div class="mt-3 pl-4 border-l-2 border-gray-100 space-y-2">
+              ${d.discussion_replies
+                .map((r) => `<p class="text-sm"><span class="font-medium">${r.profiles?.fullname || "User"}:</span> ${r.body}</p>`)
+                .join("")}
+            </div>`
+              : ""
+          }
+        </div>`
+        )
+        .join("");
+    }
+
+    document.getElementById("discussion-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("discussion-title").value.trim();
+      const body = document.getElementById("discussion-body").value.trim();
+      if (!title || !body) return;
+      const { error } = await tcpSupabase.from("course_discussions").insert({
+        course_id: courseId,
+        lesson_id: currentLesson.id,
+        student_id: session.user.id,
+        title,
+        body,
+      });
+      if (error) return tcpToast("Couldn't post: " + error.message, "error");
+      e.target.reset();
+      tcpToast("Question posted.", "success");
+      loadDiscussion();
+    });
+
+    async function loadBookmarkState() {
+      const { data } = await tcpSupabase
+        .from("bookmarks")
+        .select("*")
+        .eq("student_id", session.user.id)
+        .eq("lesson_id", currentLesson.id)
+        .maybeSingle();
+      const label = document.getElementById("bookmark-label");
+      document.getElementById("notes-textarea").value = data?.note || "";
+      label.textContent = data ? "Bookmarked — click to remove" : "Bookmark this lesson";
+      document.getElementById("bookmark-btn").onclick = () => toggleBookmark(!!data);
+      document.getElementById("save-note").onclick = () => saveNote();
+    }
+
+    async function toggleBookmark(exists) {
+      if (exists) {
+        await tcpSupabase.from("bookmarks").delete().eq("student_id", session.user.id).eq("lesson_id", currentLesson.id);
+        tcpToast("Bookmark removed.", "info");
+      } else {
+        await tcpSupabase.from("bookmarks").insert({ student_id: session.user.id, lesson_id: currentLesson.id });
+        tcpToast("Lesson bookmarked.", "success");
+      }
+      loadBookmarkState();
+    }
+
+    async function saveNote() {
+      const note = document.getElementById("notes-textarea").value;
+      const { data: existing } = await tcpSupabase
+        .from("bookmarks")
+        .select("id")
+        .eq("student_id", session.user.id)
+        .eq("lesson_id", currentLesson.id)
+        .maybeSingle();
+      if (existing) {
+        await tcpSupabase.from("bookmarks").update({ note }).eq("id", existing.id);
+      } else {
+        await tcpSupabase.from("bookmarks").insert({ student_id: session.user.id, lesson_id: currentLesson.id, note });
+      }
+      tcpToast("Note saved.", "success");
+      loadBookmarkState();
+    }
+
+    function setupTabs() {
+      document.querySelectorAll(".tab-btn").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((b) => {
+            b.classList.remove("border-[#A435F0]", "text-[#A435F0]");
+            b.classList.add("border-transparent", "text-gray-500");
+          });
+          btn.classList.add("border-[#A435F0]", "text-[#A435F0]");
+          btn.classList.remove("border-transparent", "text-gray-500");
+          document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+          document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+        })
+      );
+    }
+
+    function updateNavButtons() {
+      const idx = allLessons.findIndex((l) => l.id === currentLesson.id);
+      document.getElementById("prev-lesson").disabled = idx <= 0;
+      document.getElementById("next-lesson").disabled = idx >= allLessons.length - 1;
+      document.getElementById("prev-lesson").classList.toggle("opacity-40", idx <= 0);
+      document.getElementById("next-lesson").classList.toggle("opacity-40", idx >= allLessons.length - 1);
+    }
+
+    function setupNav() {
+      document.getElementById("prev-lesson").addEventListener("click", () => {
+        const idx = allLessons.findIndex((l) => l.id === currentLesson.id);
+        if (idx > 0) selectLesson(allLessons[idx - 1].id);
+      });
+      document.getElementById("next-lesson").addEventListener("click", () => {
+        const idx = allLessons.findIndex((l) => l.id === currentLesson.id);
+        if (idx < allLessons.length - 1) selectLesson(allLessons[idx + 1].id);
+      });
+      document.getElementById("mark-complete").addEventListener("click", markComplete);
+    }
+
+    async function markComplete() {
+      const completed = new Set(enrollment.completed_lesson_ids || []);
+      completed.add(currentLesson.id);
+      const progress = Math.round((completed.size / allLessons.length) * 100);
+      const isFullyComplete = completed.size === allLessons.length;
+
+      const update = {
+        completed_lesson_ids: Array.from(completed),
+        progress_percent: progress,
+      };
+      if (isFullyComplete) update.completed_at = new Date().toISOString();
+
+      const { data, error } = await tcpSupabase.from("enrollments").update(update).eq("id", enrollment.id).select().single();
+      if (error) return tcpToast("Couldn't save progress: " + error.message, "error");
+      enrollment = data;
+      renderSidebar();
+      highlightActiveLesson();
+      updateProgressUI();
+      tcpToast(isFullyComplete ? "🎉 Course complete! Your certificate is ready." : "Lesson marked complete.", "success");
+
+      if (isFullyComplete) {
+        await tcpSupabase.from("certificates").insert({
+          certificate_code: `TCP-${Date.now().toString(36).toUpperCase()}`,
+          student_id: session.user.id,
+          course_id: courseId,
+        }).select().maybeSingle();
+      }
+    }
+
+    function updateProgressUI() {
+      document.getElementById("sidebar-progress-bar").style.width = `${enrollment.progress_percent || 0}%`;
+      document.getElementById("sidebar-progress-text").textContent = `${Math.round(enrollment.progress_percent || 0)}% complete`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

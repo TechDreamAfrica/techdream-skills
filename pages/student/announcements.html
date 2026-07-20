@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Announcements — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6">Announcements</h1>
+      <div id="announcements-list" class="space-y-4"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "announcements", "");
+      load();
+    }
+
+    async function load() {
+      const el = document.getElementById("announcements-list");
+      el.innerHTML = tcpSkeletonCards(3);
+
+      const { data: enrollments } = await tcpSupabase.from("enrollments").select("course_id").eq("student_id", session.user.id);
+      const courseIds = (enrollments || []).map((e) => e.course_id);
+
+      const orClause = courseIds.length ? `course_id.is.null,course_id.in.(${courseIds.join(",")})` : "course_id.is.null";
+      const { data } = await tcpSupabase
+        .from("announcements")
+        .select("*, courses(title), profiles:created_by(fullname)")
+        .or(orClause)
+        .order("created_at", { ascending: false });
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No announcements", message: "Platform and course announcements will show up here." });
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (a) => `
+        <div class="tcp-card p-5">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="tcp-badge">${a.courses?.title || "Platform-wide"}</span>
+            <span class="text-xs text-gray-400">${new Date(a.created_at).toLocaleDateString()}</span>
+          </div>
+          <p class="font-semibold text-sm mt-1">${a.title}</p>
+          <p class="text-sm text-gray-600 mt-1">${a.body}</p>
+        </div>`
+        )
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

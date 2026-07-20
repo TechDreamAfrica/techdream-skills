@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certificates — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+  <style>
+    @media print {
+      #tcp-header, #tcp-footer, #student-sidebar, #certificates-list, h1.page-title { display: none !important; }
+      #certificate-modal-print { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6 page-title">Certificates</h1>
+      <div id="certificates-list" class="grid sm:grid-cols-2 gap-6"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session, profile;
+
+    async function init() {
+      profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "certificates", "");
+      load();
+    }
+
+    async function load() {
+      const el = document.getElementById("certificates-list");
+      el.innerHTML = tcpSkeletonCards(2);
+      const { data } = await tcpSupabase
+        .from("certificates")
+        .select("*, courses(title)")
+        .eq("student_id", session.user.id)
+        .order("issued_at", { ascending: false });
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({
+          title: "No certificates yet",
+          message: "Complete a course to earn your first certificate.",
+          actionLabel: "View my courses",
+        });
+        setTimeout(() => document.getElementById("tcp-empty-action")?.addEventListener("click", () => (window.location.href = "my-courses.html")), 0);
+        return;
+      }
+
+      el.innerHTML = data
+        .map(
+          (c) => `
+        <div class="tcp-card p-6 flex flex-col gap-3">
+          <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+            <svg class="w-5 h-5 text-[#A435F0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286Z"/></svg>
+          </div>
+          <p class="font-semibold text-sm">${c.courses?.title || "Course"}</p>
+          <p class="text-xs text-gray-500">Issued ${new Date(c.issued_at).toLocaleDateString()} • ${c.certificate_code}</p>
+          <button data-code="${c.certificate_code}" data-course="${c.courses?.title || ""}" data-date="${c.issued_at}" class="view-cert-btn tcp-btn-primary text-xs !py-2 w-fit">View certificate</button>
+        </div>`
+        )
+        .join("");
+
+      el.querySelectorAll(".view-cert-btn").forEach((btn) => btn.addEventListener("click", () => openCertificateModal(btn.dataset)));
+    }
+
+    function openCertificateModal(ds) {
+      const dateStr = new Date(ds.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+      const modal = tcpModal({
+        title: "Certificate of Completion",
+        bodyHtml: `
+          <div id="certificate-render" class="border-4 border-[#A435F0] rounded-xl p-8 text-center bg-white">
+            <p class="text-xs tracking-widest text-gray-400 uppercase">The Coding Professionals</p>
+            <p style="font-family:'Playfair Display',serif" class="text-2xl font-bold mt-4">Certificate of Completion</p>
+            <p class="text-sm text-gray-500 mt-6">This certifies that</p>
+            <p style="font-family:'Playfair Display',serif" class="text-xl font-semibold mt-1">${profile.fullname}</p>
+            <p class="text-sm text-gray-500 mt-4">has successfully completed</p>
+            <p class="font-semibold mt-1">${ds.course}</p>
+            <div class="flex justify-between mt-8 text-xs text-gray-400">
+              <span>Date: ${dateStr}</span>
+              <span>ID: ${ds.code}</span>
+            </div>
+          </div>
+        `,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Close</button>
+          <button id="print-cert-btn" class="tcp-btn-primary">Print / Save as PDF</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelector("#print-cert-btn").onclick = () => window.print();
+    }
+
+    init();
+  </script>
+</body>
+</html>

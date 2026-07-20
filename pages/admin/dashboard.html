@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-1">Admin overview</h1>
+      <p class="text-gray-500 text-sm mb-8">Platform-wide stats and trends.</p>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Total revenue</p>
+          <p id="stat-revenue" class="text-2xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Students</p>
+          <p id="stat-students" class="text-2xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Published courses</p>
+          <p id="stat-courses" class="text-2xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Total enrollments</p>
+          <p id="stat-enrollments" class="text-2xl font-bold mt-1">—</p>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-6 mb-10">
+        <div class="tcp-card p-5">
+          <h2 class="font-semibold text-sm mb-4">Enrollments — last 6 months</h2>
+          <canvas id="enrollments-chart" height="200"></canvas>
+        </div>
+        <div class="tcp-card p-5">
+          <h2 class="font-semibold text-sm mb-4">Revenue — last 6 months</h2>
+          <canvas id="revenue-chart" height="200"></canvas>
+        </div>
+      </div>
+
+      <div class="tcp-card p-5">
+        <h2 class="font-semibold text-sm mb-4">Top courses by students</h2>
+        <canvas id="top-courses-chart" height="140"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const PURPLE = "#A435F0";
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "dashboard", "");
+      loadStats();
+      loadCharts();
+    }
+
+    async function loadStats() {
+      const { count: studentCount } = await tcpSupabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student");
+      const { count: courseCount } = await tcpSupabase.from("courses").select("*", { count: "exact", head: true }).eq("status", "published");
+      const { count: enrollCount } = await tcpSupabase.from("enrollments").select("*", { count: "exact", head: true });
+      const { data: payments } = await tcpSupabase.from("payments").select("amount").eq("status", "succeeded");
+      const revenue = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
+      document.getElementById("stat-revenue").textContent = `$${revenue.toFixed(2)}`;
+      document.getElementById("stat-students").textContent = studentCount || 0;
+      document.getElementById("stat-courses").textContent = courseCount || 0;
+      document.getElementById("stat-enrollments").textContent = enrollCount || 0;
+    }
+
+    function lastNMonths(n) {
+      const months = [];
+      const now = new Date();
+      for (let i = n - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({ label: d.toLocaleDateString(undefined, { month: "short" }), year: d.getFullYear(), month: d.getMonth() });
+      }
+      return months;
+    }
+
+    async function loadCharts() {
+      const months = lastNMonths(6);
+      const rangeStart = new Date(months[0].year, months[0].month, 1).toISOString();
+
+      const { data: enrollments } = await tcpSupabase.from("enrollments").select("enrolled_at").gte("enrolled_at", rangeStart);
+      const { data: payments } = await tcpSupabase.from("payments").select("amount, created_at").eq("status", "succeeded").gte("created_at", rangeStart);
+
+      const enrollCounts = months.map(
+        (m) => (enrollments || []).filter((e) => sameMonth(new Date(e.enrolled_at), m)).length
+      );
+      const revenueSums = months.map((m) =>
+        (payments || []).filter((p) => sameMonth(new Date(p.created_at), m)).reduce((sum, p) => sum + Number(p.amount), 0)
+      );
+
+      new Chart(document.getElementById("enrollments-chart"), {
+        type: "line",
+        data: {
+          labels: months.map((m) => m.label),
+          datasets: [{ label: "Enrollments", data: enrollCounts, borderColor: PURPLE, backgroundColor: "rgba(164,53,240,0.08)", fill: true, tension: 0.3 }],
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+      });
+
+      new Chart(document.getElementById("revenue-chart"), {
+        type: "bar",
+        data: {
+          labels: months.map((m) => m.label),
+          datasets: [{ label: "Revenue ($)", data: revenueSums, backgroundColor: PURPLE, borderRadius: 6 }],
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+      });
+
+      const { data: topCourses } = await tcpSupabase
+        .from("courses")
+        .select("title, students_count")
+        .eq("status", "published")
+        .order("students_count", { ascending: false })
+        .limit(8);
+
+      new Chart(document.getElementById("top-courses-chart"), {
+        type: "bar",
+        data: {
+          labels: (topCourses || []).map((c) => (c.title.length > 24 ? c.title.slice(0, 24) + "…" : c.title)),
+          datasets: [{ label: "Students", data: (topCourses || []).map((c) => c.students_count || 0), backgroundColor: PURPLE, borderRadius: 6 }],
+        },
+        options: { indexAxis: "y", plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+      });
+    }
+
+    function sameMonth(date, m) {
+      return date.getFullYear() === m.year && date.getMonth() === m.month;
+    }
+
+    init();
+  </script>
+</body>
+</html>

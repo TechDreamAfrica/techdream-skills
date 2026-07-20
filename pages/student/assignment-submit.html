@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit Assignment — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-2xl mx-auto px-4 py-10">
+    <div id="loading" class="text-center text-gray-400 py-16">Loading assignment…</div>
+
+    <div id="content" class="hidden">
+      <a href="assignments.html" class="text-sm text-gray-500 hover:text-[#A435F0]">← Back to assignments</a>
+      <h1 id="a-title" class="font-display text-2xl font-bold mt-3"></h1>
+      <p id="a-meta" class="text-sm text-gray-500 mt-1"></p>
+      <p id="a-instructions" class="text-sm text-gray-600 mt-4 whitespace-pre-line"></p>
+
+      <div id="existing-submission" class="hidden mt-6 rounded-lg border border-gray-200 p-4">
+        <p class="text-xs font-semibold text-gray-500 mb-1">Your last submission</p>
+        <a id="existing-file-link" href="#" target="_blank" class="text-sm font-medium text-[#A435F0] hover:underline"></a>
+        <div id="existing-status" class="mt-2"></div>
+        <div id="existing-feedback" class="hidden mt-3 rounded-lg bg-purple-50 border border-purple-100 p-3">
+          <p class="text-xs font-semibold text-[#8710d8] mb-1">Instructor feedback</p>
+          <p id="existing-feedback-text" class="text-sm text-gray-700"></p>
+        </div>
+      </div>
+
+      <form id="submit-form" class="mt-6 space-y-4">
+        <div>
+          <label class="text-sm font-medium block mb-1">Upload file</label>
+          <input type="file" id="file-input" required accept=".pdf,.zip,.docx,.doc,.png,.jpg,.jpeg,.js,.py,.java,.c,.cpp,.html,.css" class="tcp-input" />
+          <p class="text-xs text-gray-400 mt-1">PDF, ZIP, DOCX, images, or code files.</p>
+        </div>
+        <div>
+          <label class="text-sm font-medium block mb-1">Comment (optional)</label>
+          <textarea id="comment-input" rows="3" class="tcp-input" placeholder="Anything you want the instructor to know…"></textarea>
+        </div>
+        <button type="submit" id="submit-btn" class="tcp-btn-primary">Submit assignment</button>
+      </form>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const assignmentId = new URLSearchParams(window.location.search).get("assignment");
+    let session, assignment;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      if (!assignmentId) return (window.location.href = "assignments.html");
+
+      const { data } = await tcpSupabase.from("assignments").select("*, courses(title)").eq("id", assignmentId).single();
+      if (!data) return (window.location.href = "assignments.html");
+      assignment = data;
+
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("content").classList.remove("hidden");
+      document.getElementById("a-title").textContent = assignment.title;
+      document.getElementById("a-meta").textContent = `${assignment.courses?.title || ""} • ${assignment.max_score} points${
+        assignment.due_date ? " • Due " + new Date(assignment.due_date).toLocaleDateString() : ""
+      }`;
+      document.getElementById("a-instructions").textContent = assignment.instructions || "No additional instructions.";
+
+      const { data: existing } = await tcpSupabase
+        .from("assignment_submissions")
+        .select("*")
+        .eq("assignment_id", assignmentId)
+        .eq("student_id", session.user.id)
+        .maybeSingle();
+
+      if (existing) {
+        document.getElementById("existing-submission").classList.remove("hidden");
+        const link = document.getElementById("existing-file-link");
+        link.textContent = existing.file_url ? existing.file_url.split("/").pop() : "View file";
+        link.href = existing.file_url || "#";
+        const statusMap = {
+          pending: "Pending review",
+          approved: `Approved${existing.score != null ? " — " + existing.score + " pts" : ""}`,
+          rejected: "Rejected",
+          needs_revision: "Needs revision",
+        };
+        document.getElementById("existing-status").innerHTML = `<span class="tcp-badge">${statusMap[existing.status]}</span>`;
+        if (existing.feedback) {
+          document.getElementById("existing-feedback").classList.remove("hidden");
+          document.getElementById("existing-feedback-text").textContent = existing.feedback;
+        }
+      }
+
+      document.getElementById("submit-form").addEventListener("submit", handleSubmit);
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const file = document.getElementById("file-input").files[0];
+      const comment = document.getElementById("comment-input").value.trim();
+      if (!file) return;
+
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.textContent = "Uploading…";
+
+      try {
+        const path = `${assignmentId}/${session.user.id}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await tcpSupabase.storage.from("assignments").upload(path, file, { upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = tcpSupabase.storage.from("assignments").getPublicUrl(path);
+
+        // upsert: one submission row per (assignment, student) per the unique constraint
+        const { data: existing } = await tcpSupabase
+          .from("assignment_submissions")
+          .select("id")
+          .eq("assignment_id", assignmentId)
+          .eq("student_id", session.user.id)
+          .maybeSingle();
+
+        const payload = {
+          assignment_id: assignmentId,
+          student_id: session.user.id,
+          file_url: urlData.publicUrl,
+          file_type: file.type || file.name.split(".").pop(),
+          comment,
+          status: "pending",
+          score: null,
+          feedback: null,
+          submitted_at: new Date().toISOString(),
+        };
+
+        if (existing) {
+          await tcpSupabase.from("assignment_submissions").update(payload).eq("id", existing.id);
+        } else {
+          await tcpSupabase.from("assignment_submissions").insert(payload);
+        }
+
+        tcpToast("Assignment submitted!", "success");
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (err) {
+        tcpToast("Submission failed: " + (err.message || "please try again."), "error");
+        btn.disabled = false;
+        btn.textContent = "Submit assignment";
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

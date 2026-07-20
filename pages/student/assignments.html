@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assignments — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-6">Assignments</h1>
+      <div id="assignments-list" class="tcp-card divide-y divide-gray-100"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "assignments", "");
+      load();
+    }
+
+    function statusBadge(sub) {
+      if (!sub) return `<span class="tcp-badge bg-gray-100 text-gray-600">Not submitted</span>`;
+      const map = {
+        pending: `<span class="tcp-badge bg-amber-50 text-amber-700">Pending review</span>`,
+        approved: `<span class="tcp-badge bg-emerald-50 text-emerald-700">Approved${sub.score != null ? " — " + sub.score + " pts" : ""}</span>`,
+        rejected: `<span class="tcp-badge bg-red-50 text-red-600">Rejected</span>`,
+        needs_revision: `<span class="tcp-badge bg-amber-50 text-amber-700">Needs revision</span>`,
+      };
+      return map[sub.status] || map.pending;
+    }
+
+    async function load() {
+      const el = document.getElementById("assignments-list");
+      el.innerHTML = tcpSkeletonCards(3);
+
+      const { data: enrollments } = await tcpSupabase.from("enrollments").select("course_id").eq("student_id", session.user.id);
+      const courseIds = (enrollments || []).map((e) => e.course_id);
+      if (!courseIds.length) {
+        el.innerHTML = tcpEmptyState({ title: "No assignments available", message: "Enroll in a course to see its assignments here." });
+        return;
+      }
+
+      const { data: assignments } = await tcpSupabase
+        .from("assignments")
+        .select("*, courses(title)")
+        .in("course_id", courseIds)
+        .order("due_date");
+      const { data: submissions } = await tcpSupabase.from("assignment_submissions").select("*").eq("student_id", session.user.id);
+
+      if (!assignments || assignments.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No assignments yet", message: "Your enrolled courses don't have assignments published yet." });
+        return;
+      }
+
+      el.innerHTML = assignments
+        .map((a) => {
+          const sub = (submissions || []).find((s) => s.assignment_id === a.id);
+          const dueStr = a.due_date ? new Date(a.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "No due date";
+          return `
+          <div class="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p class="font-medium text-sm">${a.title}</p>
+              <p class="text-xs text-gray-500 mt-0.5">${a.courses?.title || ""} • Due ${dueStr} • ${a.max_score} pts</p>
+              <div class="mt-2">${statusBadge(sub)}</div>
+            </div>
+            <a href="assignment-submit.html?assignment=${a.id}" class="tcp-btn-primary text-xs !py-2 shrink-0">${sub ? "View / resubmit" : "Submit"}</a>
+          </div>`;
+        })
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

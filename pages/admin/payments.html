@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payments — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <h1 class="font-display text-2xl font-bold mb-1">Payments</h1>
+      <p class="text-gray-500 text-sm mb-6">All transactions recorded on the platform.</p>
+
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Total revenue</p>
+          <p id="stat-total" class="text-xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Succeeded</p>
+          <p id="stat-succeeded" class="text-xl font-bold mt-1">—</p>
+        </div>
+        <div class="tcp-card p-4">
+          <p class="text-xs text-gray-500">Refunded / failed</p>
+          <p id="stat-other" class="text-xl font-bold mt-1">—</p>
+        </div>
+      </div>
+
+      <div class="tcp-card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3">Student</th>
+              <th class="px-5 py-3">Course</th>
+              <th class="px-5 py-3">Amount</th>
+              <th class="px-5 py-3">Status</th>
+              <th class="px-5 py-3">Date</th>
+              <th class="px-5 py-3">Reference</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    function statusBadge(s) {
+      const map = {
+        succeeded: '<span class="tcp-badge bg-emerald-50 text-emerald-700">Succeeded</span>',
+        pending: '<span class="tcp-badge bg-amber-50 text-amber-700">Pending</span>',
+        failed: '<span class="tcp-badge bg-red-50 text-red-600">Failed</span>',
+        refunded: '<span class="tcp-badge bg-gray-100 text-gray-600">Refunded</span>',
+      };
+      return map[s] || s;
+    }
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "payments", "");
+      load();
+    }
+
+    async function load() {
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">Loading…</td></tr>`;
+      const { data } = await tcpSupabase
+        .from("payments")
+        .select("*, profiles:student_id(fullname), courses(title)")
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const succeeded = (data || []).filter((p) => p.status === "succeeded");
+      const other = (data || []).filter((p) => p.status !== "succeeded");
+      document.getElementById("stat-total").textContent = `$${succeeded.reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}`;
+      document.getElementById("stat-succeeded").textContent = succeeded.length;
+      document.getElementById("stat-other").textContent = other.length;
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6">${tcpEmptyState({ title: "No payments yet" })}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data
+        .map(
+          (p) => `
+        <tr>
+          <td class="px-5 py-3 font-medium">${p.profiles?.fullname || "—"}</td>
+          <td class="px-5 py-3 text-gray-500">${p.courses?.title || "—"}</td>
+          <td class="px-5 py-3 font-medium">$${Number(p.amount).toFixed(2)}</td>
+          <td class="px-5 py-3">${statusBadge(p.status)}</td>
+          <td class="px-5 py-3 text-gray-500">${new Date(p.created_at).toLocaleDateString()}</td>
+          <td class="px-5 py-3 text-gray-400 text-xs font-mono">${p.provider_reference || "—"}</td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>

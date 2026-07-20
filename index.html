@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Coding Professionals — Learn to build, ship, and get hired</title>
+  <meta name="description" content="Practical, project-based software courses taught by working engineers." />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+
+  <div id="tcp-header"></div>
+
+  <!-- HERO -->
+  <section class="relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 grid md:grid-cols-2 gap-12 items-center">
+      <div class="tcp-animate-rise">
+        <span class="tcp-badge mb-5">New cohorts open now</span>
+        <h1 class="font-display text-4xl sm:text-5xl font-bold leading-[1.08] tracking-tight">
+          Learn to build software that ships.
+        </h1>
+        <p class="mt-5 text-lg text-gray-600 max-w-md">
+          Project-based courses in web, mobile, data and cloud — taught by engineers who build production systems, not just slides.
+        </p>
+        <form id="hero-search" class="mt-8 flex gap-2 max-w-md">
+          <input type="search" name="q" placeholder="What do you want to learn?" class="tcp-input flex-1" />
+          <button class="tcp-btn-primary shrink-0">Search</button>
+        </form>
+        <div class="mt-8 flex items-center gap-6 text-sm text-gray-500">
+          <div><span class="font-bold text-[#1c1d1f] text-lg">120+</span> courses</div>
+          <div><span class="font-bold text-[#1c1d1f] text-lg">40k+</span> students</div>
+          <div><span class="font-bold text-[#1c1d1f] text-lg">4.7</span> avg rating</div>
+        </div>
+      </div>
+
+      <div class="relative tcp-animate-rise" style="animation-delay:0.1s">
+        <div class="tcp-card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <span class="tcp-badge">Continue learning</span>
+            <span class="text-xs text-gray-400">Lesson 8 of 24</span>
+          </div>
+          <div class="h-40 rounded-xl bg-gray-100 flex items-center justify-center">
+            <svg class="w-12 h-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Z"/></svg>
+          </div>
+          <p class="font-semibold mt-4">Building REST APIs with PostgreSQL</p>
+          <div class="w-full h-2 bg-gray-100 rounded-full mt-3 overflow-hidden">
+            <div class="h-full bg-[#A435F0] rounded-full" style="width:63%"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">63% complete</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 border-t border-gray-100">
+    <h2 class="font-display text-2xl font-bold mb-8">Browse by category</h2>
+    <div id="categories-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+  </section>
+
+  <!-- FEATURED COURSES -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 border-t border-gray-100">
+    <div class="flex items-center justify-between mb-8">
+      <h2 class="font-display text-2xl font-bold">Featured courses</h2>
+      <a href="courses.html" class="text-sm font-semibold text-[#A435F0] hover:underline">View all →</a>
+    </div>
+    <div id="courses-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </section>
+
+  <!-- WHY US -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 border-t border-gray-100 grid md:grid-cols-3 gap-8">
+    <div>
+      <div class="w-11 h-11 rounded-lg bg-purple-50 flex items-center justify-center mb-4">
+        <svg class="w-5 h-5 text-[#A435F0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h16.5A2.25 2.25 0 0 0 21 20.25V6.75A2.25 2.25 0 0 0 18.75 4.5H5.25A2.25 2.25 0 0 0 3 6.75v13.5A2.25 2.25 0 0 0 5.25 22.5Z"/></svg>
+      </div>
+      <h3 class="font-semibold mb-2">Built by working engineers</h3>
+      <p class="text-sm text-gray-600">Every course is written and taught by people who ship code for a living, not full-time content creators.</p>
+    </div>
+    <div>
+      <div class="w-11 h-11 rounded-lg bg-purple-50 flex items-center justify-center mb-4">
+        <svg class="w-5 h-5 text-[#A435F0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286Z"/></svg>
+      </div>
+      <h3 class="font-semibold mb-2">Real assignments, real feedback</h3>
+      <p class="text-sm text-gray-600">Submit code and get graded by instructors — not just multiple-choice quizzes.</p>
+    </div>
+    <div>
+      <div class="w-11 h-11 rounded-lg bg-purple-50 flex items-center justify-center mb-4">
+        <svg class="w-5 h-5 text-[#A435F0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 0 0 2.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 0 1 2.916.52 6.003 6.003 0 0 1-5.395 4.972m0 0a6.726 6.726 0 0 1-2.749 1.35"/></svg>
+      </div>
+      <h3 class="font-semibold mb-2">Certificates that mean something</h3>
+      <p class="text-sm text-gray-600">Earn a certificate only after passing quizzes and submitting graded work — not just watching videos.</p>
+    </div>
+  </section>
+
+  <div id="tcp-footer"></div>
+
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("");
+    tcpRenderFooter("");
+
+    document.getElementById("hero-search").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = new FormData(e.target).get("q");
+      window.location.href = `courses.html?q=${encodeURIComponent(q || "")}`;
+    });
+
+    const CATEGORY_ICONS = {
+      code: '<path stroke-linecap="round" stroke-linejoin="round" d="m17.25 6.75 3 3-3 3m-10.5 0-3-3 3-3m8.5-3.5-4 15"/>',
+      "bar-chart": '<path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125h4.5v7.875H3v-7.875ZM9.75 8.25h4.5v12.75h-4.5V8.25ZM16.5 3.75H21v17.25h-4.5V3.75Z"/>',
+      smartphone: '<path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/>',
+      cloud: '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>',
+      "pen-tool": '<path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>',
+      shield: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286Z"/>',
+      database: '<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375"/>',
+      briefcase: '<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18.4v-4.25m16.5 0a2.25 2.25 0 0 0-.68-1.615l-5.243-5.02a2.25 2.25 0 0 0-3.154 0l-5.243 5.02a2.25 2.25 0 0 0-.68 1.615m16.5 0v.5c0 1.036-.84 1.875-1.875 1.875H5.625A1.875 1.875 0 0 1 3.75 14.65v-.5"/>',
+    };
+
+    async function loadCategories() {
+      const grid = document.getElementById("categories-grid");
+      grid.innerHTML = tcpSkeletonCards(4);
+      const { data, error } = await tcpSupabase.from("categories").select("*").limit(8);
+      if (error || !data || data.length === 0) {
+        grid.innerHTML = tcpEmptyState({ title: "Categories will appear here", message: "Connect Supabase and run the seed script to populate categories." });
+        return;
+      }
+      grid.innerHTML = data
+        .map(
+          (c) => `
+        <a href="courses.html?category=${c.slug}" class="tcp-card p-5 flex flex-col gap-3">
+          <svg class="w-6 h-6 text-[#A435F0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">${CATEGORY_ICONS[c.icon] || CATEGORY_ICONS.code}</svg>
+          <span class="font-semibold text-sm">${c.name}</span>
+        </a>`
+        )
+        .join("");
+    }
+
+    async function loadFeaturedCourses() {
+      const grid = document.getElementById("courses-grid");
+      grid.innerHTML = tcpSkeletonCards(3);
+      const { data, error } = await tcpSupabase
+        .from("courses")
+        .select("*, profiles:instructor_id(fullname)")
+        .eq("status", "published")
+        .order("students_count", { ascending: false })
+        .limit(6);
+      if (error || !data || data.length === 0) {
+        grid.innerHTML = tcpEmptyState({
+          title: "No published courses yet",
+          message: "Once instructors publish courses, they'll be featured here automatically.",
+        });
+        return;
+      }
+      grid.innerHTML = data.map(courseCardHtml).join("");
+    }
+
+    function courseCardHtml(c) {
+      const price = c.discount_price != null ? c.discount_price : c.price;
+      const struck = c.discount_price != null && c.discount_price < c.price;
+      return `
+        <a href="course-details.html?slug=${c.slug}" class="tcp-card overflow-hidden flex flex-col">
+          <div class="h-40 bg-gray-100 flex items-center justify-center">
+            ${
+              c.thumbnail
+                ? `<img src="${c.thumbnail}" alt="${c.title}" class="w-full h-full object-cover" />`
+                : `<svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>`
+            }
+          </div>
+          <div class="p-4 flex flex-col gap-1.5 flex-1">
+            <p class="font-semibold text-sm leading-snug line-clamp-2">${c.title}</p>
+            <p class="text-xs text-gray-500">${c.profiles?.fullname || "TCP Instructor"}</p>
+            <div class="flex items-center gap-1 text-xs text-amber-700 font-semibold">
+              ${c.rating_avg?.toFixed?.(1) ?? "New"} <span class="text-gray-400 font-normal">(${c.rating_count || 0})</span>
+            </div>
+            <div class="mt-auto pt-1 font-bold text-sm">
+              $${Number(price).toFixed(2)}
+              ${struck ? `<span class="text-gray-400 line-through font-normal ml-1">$${Number(c.price).toFixed(2)}</span>` : ""}
+            </div>
+          </div>
+        </a>`;
+    }
+
+    loadCategories();
+    loadFeaturedCourses();
+  </script>
+</body>
+</html>

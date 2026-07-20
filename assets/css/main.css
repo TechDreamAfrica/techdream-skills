@@ -1,0 +1,171 @@
+/* ============================================================================
+   THE CODING PROFESSIONALS — Design tokens & shared component styles
+   Tailwind (CDN, no build step) handles utilities. This file adds:
+   - the brand accent as CSS variables
+   - keyframes used by ui.js (toasts, modals)
+   - a few repeated component patterns to avoid class soup in markup
+   ============================================================================ */
+
+:root {
+  --tcp-purple: #a435f0;
+  --tcp-purple-dark: #8710d8;
+  --tcp-purple-light: #f5e9fe;
+  --tcp-ink: #1c1d1f;
+  --tcp-gray: #6a6f73;
+  --tcp-border: #e8e8e8;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  color: var(--tcp-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Visible keyboard focus everywhere — accessibility floor */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--tcp-purple);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Reusable component classes ---------- */
+
+.tcp-btn-primary {
+  background: var(--tcp-purple);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  transition: background 0.15s ease;
+}
+.tcp-btn-primary:hover {
+  background: var(--tcp-purple-dark);
+}
+.tcp-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tcp-btn-secondary {
+  background: #fff;
+  color: var(--tcp-ink);
+  font-weight: 600;
+  border: 1.5px solid var(--tcp-ink);
+  border-radius: 0.5rem;
+  padding: 0.5625rem 1.25rem;
+  transition: background 0.15s ease;
+}
+.tcp-btn-secondary:hover {
+  background: #f7f7f7;
+}
+
+.tcp-card {
+  background: #fff;
+  border: 1px solid var(--tcp-border);
+  border-radius: 1rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.tcp-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.tcp-input {
+  width: 100%;
+  border: 1.5px solid var(--tcp-border);
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  transition: border-color 0.15s ease;
+}
+.tcp-input:focus {
+  border-color: var(--tcp-purple);
+  outline: none;
+}
+
+.tcp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  background: var(--tcp-purple-light);
+  color: var(--tcp-purple-dark);
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes tcp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tcp-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tcp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tcp-animate-rise {
+  animation: tcp-rise 0.5s ease-out both;
+}
+
+/* Star rating (read-only, filled via inline style width on .tcp-star-fill) */
+.tcp-stars {
+  position: relative;
+  display: inline-block;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #e8e8e8;
+}
+.tcp-star-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #b4690e;
+}

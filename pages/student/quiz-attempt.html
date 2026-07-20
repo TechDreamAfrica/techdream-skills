@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-3xl mx-auto px-4 py-10">
+    <div id="quiz-intro">
+      <h1 id="quiz-title" class="font-display text-2xl font-bold mb-2">Loading quiz…</h1>
+      <p id="quiz-meta" class="text-sm text-gray-500 mb-8"></p>
+      <button id="start-quiz-btn" class="tcp-btn-primary">Start quiz</button>
+    </div>
+
+    <div id="quiz-body" class="hidden">
+      <div class="flex items-center justify-between mb-6 sticky top-16 bg-white py-3 z-10 border-b border-gray-100">
+        <h1 id="quiz-title-2" class="font-display text-lg font-bold"></h1>
+        <span id="timer" class="tcp-badge text-sm"></span>
+      </div>
+      <form id="quiz-form" class="space-y-8"></form>
+      <button id="submit-quiz-btn" class="tcp-btn-primary mt-8">Submit quiz</button>
+    </div>
+
+    <div id="quiz-result" class="hidden text-center py-10">
+      <div id="result-icon" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4"></div>
+      <h1 id="result-heading" class="font-display text-2xl font-bold"></h1>
+      <p id="result-score" class="text-gray-500 mt-2"></p>
+      <div class="flex items-center justify-center gap-3 mt-6">
+        <a href="quizzes.html" class="tcp-btn-secondary">Back to quizzes</a>
+        <button id="retake-btn" class="tcp-btn-primary">Retake quiz</button>
+      </div>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const quizId = new URLSearchParams(window.location.search).get("quiz");
+    let session, quiz, questions = [], timerInterval, secondsLeft;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      if (!quizId) return (window.location.href = "quizzes.html");
+
+      const { data } = await tcpSupabase.from("quizzes").select("*, quiz_questions(*)").eq("id", quizId).single();
+      if (!data) return (window.location.href = "quizzes.html");
+      quiz = data;
+      questions = (data.quiz_questions || []).sort(() => 0);
+
+      document.getElementById("quiz-title").textContent = quiz.title;
+      document.getElementById("quiz-title-2").textContent = quiz.title;
+      document.getElementById("quiz-meta").textContent = `${questions.length} questions${
+        quiz.time_limit_minutes ? ` • ${quiz.time_limit_minutes} minute time limit` : ""
+      } • Passing score: ${quiz.passing_score}%`;
+
+      document.getElementById("start-quiz-btn").addEventListener("click", startQuiz);
+      document.getElementById("retake-btn").addEventListener("click", () => window.location.reload());
+    }
+
+    function startQuiz() {
+      document.getElementById("quiz-intro").classList.add("hidden");
+      document.getElementById("quiz-body").classList.remove("hidden");
+      renderQuestions();
+      if (quiz.time_limit_minutes) {
+        secondsLeft = quiz.time_limit_minutes * 60;
+        updateTimer();
+        timerInterval = setInterval(() => {
+          secondsLeft--;
+          updateTimer();
+          if (secondsLeft <= 0) {
+            clearInterval(timerInterval);
+            tcpToast("Time's up — submitting your answers.", "info");
+            submitQuiz();
+          }
+        }, 1000);
+      } else {
+        document.getElementById("timer").classList.add("hidden");
+      }
+    }
+
+    function updateTimer() {
+      const m = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+      const s = (secondsLeft % 60).toString().padStart(2, "0");
+      document.getElementById("timer").textContent = `⏱ ${m}:${s}`;
+    }
+
+    function renderQuestions() {
+      const form = document.getElementById("quiz-form");
+      form.innerHTML = questions
+        .map((q, idx) => {
+          let inputsHtml = "";
+          if (q.type === "single_choice" || q.type === "true_false") {
+            const options = q.type === "true_false" ? ["True", "False"] : q.options || [];
+            inputsHtml = options
+              .map(
+                (opt, i) => `
+              <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2.5 cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="q_${q.id}" value="${i}" required />
+                <span class="text-sm">${opt}</span>
+              </label>`
+              )
+              .join("");
+          } else if (q.type === "multi_select") {
+            inputsHtml = (q.options || [])
+              .map(
+                (opt, i) => `
+              <label class="flex items-center gap-2 border border-gray-200 rounded-lg px-4 py-2.5 cursor-pointer hover:bg-gray-50">
+                <input type="checkbox" name="q_${q.id}" value="${i}" />
+                <span class="text-sm">${opt}</span>
+              </label>`
+              )
+              .join("");
+          } else {
+            inputsHtml = `<input type="text" name="q_${q.id}" class="tcp-input" placeholder="Your answer" required />`;
+          }
+          return `
+          <fieldset>
+            <legend class="font-medium text-sm mb-3">${idx + 1}. ${q.question} <span class="text-gray-400 font-normal">(${q.points} pt${q.points === 1 ? "" : "s"})</span></legend>
+            <div class="space-y-2">${inputsHtml}</div>
+          </fieldset>`;
+        })
+        .join("");
+
+      document.getElementById("submit-quiz-btn").addEventListener("click", (e) => {
+        e.preventDefault();
+        if (!form.reportValidity()) return;
+        submitQuiz();
+      });
+    }
+
+    function collectAnswers() {
+      const answers = {};
+      questions.forEach((q) => {
+        if (q.type === "multi_select") {
+          answers[q.id] = Array.from(document.querySelectorAll(`input[name="q_${q.id}"]:checked`)).map((i) => Number(i.value));
+        } else if (q.type === "single_choice" || q.type === "true_false") {
+          const checked = document.querySelector(`input[name="q_${q.id}"]:checked`);
+          answers[q.id] = checked ? Number(checked.value) : null;
+        } else {
+          const input = document.querySelector(`input[name="q_${q.id}"]`);
+          answers[q.id] = (input?.value || "").trim().toLowerCase();
+        }
+      });
+      return answers;
+    }
+
+    function gradeAnswers(answers) {
+      let earned = 0,
+        total = 0;
+      questions.forEach((q) => {
+        total += q.points || 1;
+        const correct = q.correct_answer;
+        const given = answers[q.id];
+        let isCorrect = false;
+        if (q.type === "multi_select") {
+          const correctSet = new Set(correct);
+          const givenSet = new Set(given || []);
+          isCorrect = correctSet.size === givenSet.size && [...correctSet].every((v) => givenSet.has(v));
+        } else if (q.type === "short_answer") {
+          isCorrect = String(correct).trim().toLowerCase() === given;
+        } else {
+          isCorrect = Number(correct) === Number(given);
+        }
+        if (isCorrect) earned += q.points || 1;
+      });
+      return total > 0 ? Math.round((earned / total) * 100) : 0;
+    }
+
+    async function submitQuiz() {
+      clearInterval(timerInterval);
+      const answers = collectAnswers();
+      const score = gradeAnswers(answers);
+      const passed = score >= quiz.passing_score;
+
+      await tcpSupabase.from("quiz_attempts").insert({
+        quiz_id: quiz.id,
+        student_id: session.user.id,
+        answers,
+        score,
+        passed,
+        submitted_at: new Date().toISOString(),
+      });
+
+      document.getElementById("quiz-body").classList.add("hidden");
+      document.getElementById("quiz-result").classList.remove("hidden");
+      document.getElementById("result-icon").className = `w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4 ${
+        passed ? "bg-emerald-50" : "bg-red-50"
+      }`;
+      document.getElementById("result-icon").innerHTML = passed
+        ? '<svg class="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>'
+        : '<svg class="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>';
+      document.getElementById("result-heading").textContent = passed ? "You passed!" : "Not quite — try again";
+      document.getElementById("result-score").textContent = `You scored ${score}% (passing score: ${quiz.passing_score}%)`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

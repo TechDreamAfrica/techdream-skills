@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exercise Workspace — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div id="loading" class="text-center text-gray-400 py-16">Loading exercise…</div>
+
+    <div id="content" class="hidden grid lg:grid-cols-2 gap-8">
+      <!-- PROBLEM -->
+      <div>
+        <h1 id="ex-title" class="font-display text-2xl font-bold mb-2"></h1>
+        <span id="ex-language" class="tcp-badge mb-4 inline-block"></span>
+        <div class="prose-sm">
+          <h2 class="font-semibold text-sm mt-4 mb-2">Problem</h2>
+          <p id="ex-problem" class="text-sm text-gray-600 whitespace-pre-line"></p>
+          <h2 class="font-semibold text-sm mt-6 mb-2">Instructions</h2>
+          <p id="ex-instructions" class="text-sm text-gray-600 whitespace-pre-line"></p>
+        </div>
+        <div id="feedback-box" class="hidden mt-6 rounded-lg bg-purple-50 border border-purple-100 p-4">
+          <p class="text-xs font-semibold text-[#8710d8] mb-1">Instructor feedback</p>
+          <p id="feedback-text" class="text-sm text-gray-700"></p>
+        </div>
+      </div>
+
+      <!-- EDITOR -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold text-sm">Your solution</h2>
+          <span id="save-status" class="text-xs text-gray-400"></span>
+        </div>
+        <textarea id="code-editor" spellcheck="false"
+          class="w-full h-96 rounded-xl border border-gray-200 bg-[#1c1d1f] text-gray-100 p-4 text-sm leading-relaxed focus:outline-none focus:border-[#A435F0]"
+          style="font-family: 'JetBrains Mono', monospace;"></textarea>
+        <div class="flex gap-2 mt-4">
+          <button id="save-draft-btn" class="tcp-btn-secondary text-sm">Save draft</button>
+          <button id="submit-btn" class="tcp-btn-primary text-sm">Submit solution</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const exerciseId = new URLSearchParams(window.location.search).get("exercise");
+    let session, exercise;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      if (!exerciseId) return (window.location.href = "exercises.html");
+
+      const { data } = await tcpSupabase.from("coding_exercises").select("*").eq("id", exerciseId).single();
+      if (!data) return (window.location.href = "exercises.html");
+      exercise = data;
+
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("content").classList.remove("hidden");
+      document.getElementById("ex-title").textContent = exercise.title;
+      document.getElementById("ex-language").textContent = exercise.language;
+      document.getElementById("ex-problem").textContent = exercise.problem_statement;
+      document.getElementById("ex-instructions").textContent = exercise.instructions || "—";
+
+      const { data: latest } = await tcpSupabase
+        .from("exercise_submissions")
+        .select("*")
+        .eq("exercise_id", exerciseId)
+        .eq("student_id", session.user.id)
+        .order("submitted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      document.getElementById("code-editor").value = latest?.code || exercise.starter_code || "";
+      if (latest?.feedback) {
+        document.getElementById("feedback-box").classList.remove("hidden");
+        document.getElementById("feedback-text").textContent = latest.feedback;
+      }
+
+      document.getElementById("save-draft-btn").addEventListener("click", () => saveSolution(true));
+      document.getElementById("submit-btn").addEventListener("click", () => saveSolution(false));
+    }
+
+    async function saveSolution(isDraft) {
+      const code = document.getElementById("code-editor").value;
+      const btn = isDraft ? document.getElementById("save-draft-btn") : document.getElementById("submit-btn");
+      btn.disabled = true;
+      const { error } = await tcpSupabase.from("exercise_submissions").insert({
+        exercise_id: exerciseId,
+        student_id: session.user.id,
+        code,
+        is_draft: isDraft,
+      });
+      btn.disabled = false;
+      if (error) return tcpToast("Couldn't save: " + error.message, "error");
+      document.getElementById("save-status").textContent = `${isDraft ? "Draft" : "Solution"} saved at ${new Date().toLocaleTimeString()}`;
+      tcpToast(isDraft ? "Draft saved." : "Solution submitted for review.", "success");
+    }
+
+    init();
+  </script>
+</body>
+</html>

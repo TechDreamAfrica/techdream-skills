@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enrollments — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <h1 class="font-display text-2xl font-bold">Enrollments</h1>
+        <input id="search-input" type="search" placeholder="Search by student or course" class="tcp-input max-w-xs" />
+      </div>
+
+      <div class="tcp-card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3">Student</th>
+              <th class="px-5 py-3">Course</th>
+              <th class="px-5 py-3">Enrolled</th>
+              <th class="px-5 py-3">Progress</th>
+              <th class="px-5 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let rows = [];
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "enrollments", "");
+      document.getElementById("search-input").addEventListener("input", (e) => render(e.target.value));
+      load();
+    }
+
+    async function load() {
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">Loading…</td></tr>`;
+      const { data } = await tcpSupabase
+        .from("enrollments")
+        .select("*, profiles:student_id(fullname, email), courses(title)")
+        .order("enrolled_at", { ascending: false })
+        .limit(200);
+      rows = data || [];
+      render("");
+    }
+
+    function render(filter) {
+      const tbody = document.getElementById("tbody");
+      const f = filter.trim().toLowerCase();
+      const list = f
+        ? rows.filter(
+            (r) => r.profiles?.fullname?.toLowerCase().includes(f) || r.courses?.title?.toLowerCase().includes(f)
+          )
+        : rows;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">${tcpEmptyState({ title: "No enrollments found" })}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list
+        .map(
+          (r) => `
+        <tr>
+          <td class="px-5 py-3 font-medium">${r.profiles?.fullname || "—"}</td>
+          <td class="px-5 py-3 text-gray-500">${r.courses?.title || "—"}</td>
+          <td class="px-5 py-3 text-gray-500">${new Date(r.enrolled_at).toLocaleDateString()}</td>
+          <td class="px-5 py-3 text-gray-500">${Math.round(r.progress_percent || 0)}%</td>
+          <td class="px-5 py-3">
+            ${r.completed_at ? '<span class="tcp-badge bg-emerald-50 text-emerald-700">Completed</span>' : '<span class="tcp-badge">In progress</span>'}
+          </td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    init();
+  </script>
+</body>
+</html>
