@@ -98,9 +98,7 @@
     }
 
     function resolveLink(link) {
-      if (!link) return "#";
-      // Links stored may be relative to project root (from other pages); normalize to this page's depth.
-      return link.startsWith("pages/student/") ? link.replace("pages/student/", "") : link.startsWith("../../") ? link : link;
+      return link || "#";
     }
 
     async function markAllRead() {

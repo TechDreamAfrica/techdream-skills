@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Course Editor — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0 max-w-3xl">
+      <div class="flex items-center justify-between gap-4 mb-2 flex-wrap">
+        <h1 id="page-title" class="font-display text-2xl font-bold">New course</h1>
+        <div id="curriculum-link-slot" class="hidden">
+          <a id="curriculum-link" href="#" class="tcp-btn-secondary text-sm !py-2">Manage curriculum →</a>
+        </div>
+      </div>
+      <p class="text-gray-500 text-sm mb-8">Title, media, pricing, and details. Sections and lessons are managed separately once the course exists.</p>
+
+      <form id="course-form" class="space-y-8">
+        <!-- MEDIA -->
+        <section class="tcp-card p-6">
+          <h2 class="font-semibold text-sm mb-4">Course media</h2>
+
+          <div class="grid sm:grid-cols-2 gap-6">
+            <div>
+              <label class="text-sm font-medium block mb-2">Thumbnail image</label>
+              <div id="thumbnail-preview" class="h-40 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-2">
+                <span class="text-xs text-gray-400">No thumbnail yet</span>
+              </div>
+              <input type="file" id="thumbnail-input" accept="image/*" class="text-sm" />
+              <div id="thumbnail-progress" class="hidden mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full bg-[#A435F0]" style="width:0%"></div>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">Shown on course cards and the course page. 16:9 works best.</p>
+            </div>
+
+            <div>
+              <label class="text-sm font-medium block mb-2">Teaser / overview video</label>
+              <div id="teaser-preview" class="h-40 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden mb-2">
+                <span class="text-xs text-gray-400">No teaser yet</span>
+              </div>
+              <input type="file" id="teaser-input" accept="video/*" class="text-sm" />
+              <div id="teaser-progress" class="hidden mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full bg-[#A435F0]" style="width:0%"></div>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">A 1-2 minute preview shown on the course page. Optional.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- CORE DETAILS -->
+        <section class="tcp-card p-6 space-y-4">
+          <h2 class="font-semibold text-sm mb-1">Course details</h2>
+          <div>
+            <label class="text-sm font-medium block mb-1">Title</label>
+            <input name="title" required class="tcp-input" placeholder="e.g. Building REST APIs with PostgreSQL" />
+          </div>
+          <div>
+            <label class="text-sm font-medium block mb-1">Description</label>
+            <textarea name="description" rows="4" class="tcp-input" placeholder="What will students learn?"></textarea>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm font-medium block mb-1">Category</label>
+              <select name="category_id" class="tcp-input">
+                <option value="">No category</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Instructor</label>
+              <select name="instructor_id" required class="tcp-input"></select>
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Level</label>
+              <select name="level" class="tcp-input">
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Language</label>
+              <input name="language" class="tcp-input" value="English" />
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Duration (minutes)</label>
+              <input name="duration_minutes" type="number" min="0" class="tcp-input" value="0" />
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Status</label>
+              <select name="status" class="tcp-input">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-medium block mb-1">Prerequisites</label>
+            <textarea name="prerequisites" rows="2" class="tcp-input" placeholder="What should students already know?"></textarea>
+          </div>
+          <div>
+            <label class="text-sm font-medium block mb-1">Requirements</label>
+            <textarea name="requirements" rows="2" class="tcp-input" placeholder="Software, hardware, or accounts needed"></textarea>
+          </div>
+        </section>
+
+        <!-- PRICING -->
+        <section class="tcp-card p-6 space-y-4">
+          <h2 class="font-semibold text-sm mb-1">Pricing <span class="text-gray-400 font-normal">(GHS — used directly for Hubtel checkout)</span></h2>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm font-medium block mb-1">Price</label>
+              <input name="price" type="number" min="0" step="0.01" class="tcp-input" value="0" />
+              <p class="text-xs text-gray-400 mt-1">Set to 0 for a free course.</p>
+            </div>
+            <div>
+              <label class="text-sm font-medium block mb-1">Discount price (optional)</label>
+              <input name="discount_price" type="number" min="0" step="0.01" class="tcp-input" placeholder="Leave blank for no discount" />
+            </div>
+          </div>
+        </section>
+
+        <div class="flex items-center gap-3">
+          <button type="submit" id="save-btn" class="tcp-btn-primary">Save course</button>
+          <a href="courses.html" class="tcp-btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script src="../../assets/js/cloudinary.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const existingCourseId = new URLSearchParams(window.location.search).get("course");
+    let session, existingCourse = null, thumbnailUrl = null, teaserUrl = null;
+
+    function slugify(str) {
+      return (
+        str
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "") +
+        "-" +
+        Date.now().toString(36).slice(-4)
+      );
+    }
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderAdminSidebar("admin-sidebar", "courses", "");
+
+      await Promise.all([loadCategories(), loadInstructors(profile)]);
+
+      if (existingCourseId) {
+        document.getElementById("page-title").textContent = "Edit course";
+        await loadExistingCourse();
+      }
+
+      document.getElementById("thumbnail-input").addEventListener("change", handleThumbnailUpload);
+      document.getElementById("teaser-input").addEventListener("change", handleTeaserUpload);
+      document.getElementById("course-form").addEventListener("submit", handleSubmit);
+    }
+
+    async function loadCategories() {
+      const { data } = await tcpSupabase.from("categories").select("*").order("name");
+      const select = document.querySelector('select[name="category_id"]');
+      (data || []).forEach((c) => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        select.appendChild(opt);
+      });
+    }
+
+    async function loadInstructors(currentProfile) {
+      const { data } = await tcpSupabase.from("profiles").select("id, fullname, role").in("role", ["instructor", "admin"]).order("fullname");
+      const select = document.querySelector('select[name="instructor_id"]');
+      (data || []).forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = `${p.fullname} (${p.role})`;
+        select.appendChild(opt);
+      });
+      // Default to the current admin unless we're editing an existing course.
+      if (!existingCourseId) select.value = currentProfile.id;
+    }
+
+    async function loadExistingCourse() {
+      const { data, error } = await tcpSupabase.from("courses").select("*").eq("id", existingCourseId).single();
+      if (error || !data) {
+        tcpToast("Course not found.", "error");
+        return (window.location.href = "courses.html");
+      }
+      existingCourse = data;
+      const form = document.getElementById("course-form");
+      form.title.value = data.title || "";
+      form.description.value = data.description || "";
+      form.category_id.value = data.category_id || "";
+      form.instructor_id.value = data.instructor_id || "";
+      form.level.value = data.level || "beginner";
+      form.language.value = data.language || "English";
+      form.duration_minutes.value = data.duration_minutes || 0;
+      form.status.value = data.status || "draft";
+      form.prerequisites.value = data.prerequisites || "";
+      form.requirements.value = data.requirements || "";
+      form.price.value = data.price || 0;
+      form.discount_price.value = data.discount_price ?? "";
+
+      thumbnailUrl = data.thumbnail;
+      teaserUrl = data.teaser_video_url;
+      if (thumbnailUrl) renderThumbnailPreview(thumbnailUrl);
+      if (teaserUrl) renderTeaserPreview(teaserUrl);
+
+      document.getElementById("curriculum-link-slot").classList.remove("hidden");
+      document.getElementById("curriculum-link").href = `course-curriculum.html?course=${existingCourseId}`;
+    }
+
+    function renderThumbnailPreview(url) {
+      document.getElementById("thumbnail-preview").innerHTML = `<img src="${url}" class="w-full h-full object-cover" alt="" />`;
+    }
+    function renderTeaserPreview(url) {
+      document.getElementById("teaser-preview").innerHTML = `<video src="${url}" class="w-full h-full object-cover" controls></video>`;
+    }
+
+    async function handleThumbnailUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const progressWrap = document.getElementById("thumbnail-progress");
+      const progressBar = progressWrap.querySelector("div");
+      progressWrap.classList.remove("hidden");
+      try {
+        const result = await uploadImageToCloudinary(file, "tcp/thumbnails", (pct) => (progressBar.style.width = pct + "%"));
+        thumbnailUrl = result.secure_url;
+        renderThumbnailPreview(thumbnailUrl);
+        tcpToast("Thumbnail uploaded.", "success");
+      } catch (err) {
+        tcpToast("Thumbnail upload failed: " + err.message, "error");
+      } finally {
+        progressWrap.classList.add("hidden");
+        progressBar.style.width = "0%";
+      }
+    }
+
+    async function handleTeaserUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const progressWrap = document.getElementById("teaser-progress");
+      const progressBar = progressWrap.querySelector("div");
+      progressWrap.classList.remove("hidden");
+      try {
+        const result = await uploadVideoToCloudinary(file, "tcp/teasers", (pct) => (progressBar.style.width = pct + "%"));
+        teaserUrl = result.secure_url;
+        renderTeaserPreview(teaserUrl);
+        tcpToast("Teaser video uploaded.", "success");
+      } catch (err) {
+        tcpToast("Teaser upload failed: " + err.message, "error");
+      } finally {
+        progressWrap.classList.add("hidden");
+        progressBar.style.width = "0%";
+      }
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const form = e.target;
+      if (!form.reportValidity()) return;
+      const data = Object.fromEntries(new FormData(form));
+
+      const payload = {
+        title: data.title,
+        description: data.description,
+        category_id: data.category_id || null,
+        instructor_id: data.instructor_id,
+        level: data.level,
+        language: data.language || "English",
+        duration_minutes: Number(data.duration_minutes) || 0,
+        status: data.status,
+        prerequisites: data.prerequisites,
+        requirements: data.requirements,
+        price: Number(data.price) || 0,
+        discount_price: data.discount_price === "" ? null : Number(data.discount_price),
+        thumbnail: thumbnailUrl,
+        teaser_video_url: teaserUrl,
+      };
+
+      const btn = document.getElementById("save-btn");
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+
+      try {
+        if (existingCourse) {
+          const { error } = await tcpSupabase.from("courses").update(payload).eq("id", existingCourse.id);
+          if (error) throw error;
+          tcpToast("Course updated.", "success");
+        } else {
+          payload.slug = slugify(data.title);
+          const { data: created, error } = await tcpSupabase.from("courses").insert(payload).select("id").single();
+          if (error) throw error;
+          tcpToast("Course created — now add your curriculum.", "success");
+          setTimeout(() => (window.location.href = `course-curriculum.html?course=${created.id}`), 700);
+          return;
+        }
+      } catch (err) {
+        tcpToast("Couldn't save: " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Save course";
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

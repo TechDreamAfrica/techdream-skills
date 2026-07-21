@@ -31,7 +31,8 @@ function tcpRenderHeader(base = "") {
         </nav>
 
         <div id="tcp-header-auth" class="flex items-center gap-3 shrink-0">
-          <!-- filled by JS below once session is known -->
+          <a href="/pages/login.html" class="text-sm font-semibold text-gray-800 hover:text-[#A435F0] hidden sm:inline">Log in</a>
+          <a href="/pages/register.html" class="tcp-btn-secondary text-sm !py-2">Sign up</a>
         </div>
 
         <button id="tcp-mobile-toggle" class="lg:hidden text-gray-700" aria-label="Open menu">
@@ -47,7 +48,10 @@ function tcpRenderHeader(base = "") {
         <a href="${base}courses.html" class="block text-sm font-medium text-gray-700">Courses</a>
         <a href="${base}categories.html" class="block text-sm font-medium text-gray-700">Categories</a>
         <a href="${base}pricing.html" class="block text-sm font-medium text-gray-700">Pricing</a>
-        <div id="tcp-mobile-auth" class="pt-2 border-t border-gray-100 space-y-2"></div>
+        <div id="tcp-mobile-auth" class="pt-2 border-t border-gray-100 space-y-2">
+          <a href="/pages/login.html" class="block text-sm font-semibold">Log in</a>
+          <a href="/pages/register.html" class="block text-sm font-semibold text-[#A435F0]">Sign up</a>
+        </div>
       </div>
     </header>
   `;
@@ -74,29 +78,29 @@ async function renderHeaderAuthState(base) {
   const mobileSlot = document.getElementById("tcp-mobile-auth");
   if (!authSlot) return;
 
-  const session = await window.TcpAuth?.getSession();
+  let session = null;
+  try {
+    session = await window.TcpAuth?.getSession();
+  } catch (err) {
+    // Supabase not reachable/configured yet — leave the default logged-out
+    // buttons (already rendered in the header markup) in place.
+    console.warn("Could not check auth session:", err.message || err);
+    return;
+  }
   if (!session) {
-    authSlot.innerHTML = `
-      <a href="${base}login.html" class="text-sm font-semibold text-gray-800 hover:text-[#A435F0] hidden sm:inline">Log in</a>
-      <a href="../register.html" class="tcp-btn-secondary text-sm !py-2">Sign up</a>
-    `;
-    if (mobileSlot)
-      mobileSlot.innerHTML = `
-        <a href="${base}login.html" class="block text-sm font-semibold">Log in</a>
-        <a href="${base}register.html" class="block text-sm font-semibold text-[#A435F0]">Sign up</a>
-      `;
+    // Already showing the logged-out buttons by default — nothing to do.
     return;
   }
 
   const profile = await window.TcpAuth.getProfile();
   const initials = (profile?.fullname || session.user.email || "?").trim().charAt(0).toUpperCase();
-  const dashHref = profile?.role === "admin" ? `${base}admin/dashboard.html` : `${base}student/dashboard.html`;
+  const dashHref = profile?.role === "admin" ? "/pages/admin/dashboard.html" : "/pages/student/dashboard.html";
 
   authSlot.innerHTML = `
-    <a href="${base}student/wishlist.html" class="hidden sm:inline text-gray-500 hover:text-[#A435F0]" aria-label="Wishlist">
+    <a href="/pages/student/wishlist.html" class="hidden sm:inline text-gray-500 hover:text-[#A435F0]" aria-label="Wishlist">
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"/></svg>
     </a>
-    <a href="${base}student/notifications.html" class="hidden sm:inline text-gray-500 hover:text-[#A435F0]" aria-label="Notifications">
+    <a href="/pages/student/notifications.html" class="hidden sm:inline text-gray-500 hover:text-[#A435F0]" aria-label="Notifications">
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
     </a>
     <div class="relative">
@@ -105,7 +109,7 @@ async function renderHeaderAuthState(base) {
       </button>
       <div id="tcp-avatar-menu" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-2 text-sm">
         <a href="${dashHref}" class="block px-4 py-2 hover:bg-gray-50">Dashboard</a>
-        <a href="${base}student/profile.html" class="block px-4 py-2 hover:bg-gray-50">Profile & settings</a>
+        <a href="/pages/student/profile.html" class="block px-4 py-2 hover:bg-gray-50">Profile & settings</a>
         <button id="tcp-logout-btn" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600">Log out</button>
       </div>
     </div>
@@ -140,7 +144,7 @@ function tcpRenderFooter(base = "") {
   if (!el) return;
   el.innerHTML = `
     <footer class="bg-[#1c1d1f] text-gray-300 mt-24">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid grid-cols-2 md:grid-cols-5 gap-8">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid grid-cols-2 md:grid-cols-6 gap-8">
         <div class="col-span-2">
           <span class="font-display font-bold text-lg text-white">THE CODING PROFESSIONALS</span>
           <p class="text-sm text-gray-400 mt-3 max-w-xs">Practical, project-based courses built and taught by working software engineers.</p>
@@ -165,6 +169,13 @@ function tcpRenderFooter(base = "") {
           <h4 class="text-white text-sm font-semibold mb-3">Support</h4>
           <ul class="space-y-2 text-sm">
             <li><a href="${base}faq.html" class="hover:text-white">FAQ</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-white text-sm font-semibold mb-3">Legal</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="${base}privacy-policy.html" class="hover:text-white">Privacy Policy</a></li>
+            <li><a href="${base}terms.html" class="hover:text-white">Terms of Service</a></li>
           </ul>
         </div>
       </div>

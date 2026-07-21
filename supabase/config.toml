@@ -1,0 +1,10 @@
+# Supabase project config — Edge Function settings relevant to this project.
+# If you already have a supabase/config.toml from `supabase init`, merge this
+# section into it rather than overwriting the whole file.
+
+[functions.hubtel-callback]
+# Hubtel calls this webhook server-to-server and does not send a Supabase
+# JWT, so JWT verification must be disabled for this function specifically.
+# (hubtel-initiate is NOT listed here — it keeps the default of requiring a
+# valid JWT, since it's only ever called by a signed-in student's browser.)
+verify_jwt = false

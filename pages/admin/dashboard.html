@@ -85,7 +85,7 @@
       const { data: payments } = await tcpSupabase.from("payments").select("amount").eq("status", "succeeded");
       const revenue = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
 
-      document.getElementById("stat-revenue").textContent = `$${revenue.toFixed(2)}`;
+      document.getElementById("stat-revenue").textContent = `GHS ${revenue.toFixed(2)}`;
       document.getElementById("stat-students").textContent = studentCount || 0;
       document.getElementById("stat-courses").textContent = courseCount || 0;
       document.getElementById("stat-enrollments").textContent = enrollCount || 0;

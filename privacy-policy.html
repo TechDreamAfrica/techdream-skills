@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <h1 class="font-display text-3xl font-bold">Privacy Policy</h1>
+    <p class="text-sm text-gray-400 mt-2">Last updated: July 20, 2026</p>
+
+    <div class="mt-10 space-y-10 text-sm text-gray-600 leading-relaxed">
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">1. Introduction</h2>
+        <p>This Privacy Policy explains what information The Coding Professionals ("we," "us," "our") collects when you use our platform, how we use it, and the choices you have. By creating an account or otherwise using the platform, you agree to the practices described here.</p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">2. Information we collect</h2>
+        <ul class="list-disc pl-5 space-y-2">
+          <li><strong>Account information:</strong> full name, email address, phone number, bio, and profile photo you provide.</li>
+          <li><strong>Learning activity:</strong> courses you enroll in, lesson progress, quiz and exercise attempts, assignment submissions, notes, bookmarks, wishlists, and certificates earned.</li>
+          <li><strong>Payment records:</strong> transaction amount, currency, status, and a provider reference for course purchases. We do not store full card numbers.</li>
+          <li><strong>Communications:</strong> messages you send us through the contact form, discussion posts, and reviews you submit.</li>
+          <li><strong>Technical data:</strong> basic device and usage information collected automatically to keep the platform secure and reliable.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">3. How we use your information</h2>
+        <ul class="list-disc pl-5 space-y-2">
+          <li>To provide access to the courses you enroll in and track your progress.</li>
+          <li>To process payments and maintain a record of your purchases.</li>
+          <li>To send you account, course, and grading notifications.</li>
+          <li>To respond to support requests submitted through the contact form.</li>
+          <li>To maintain the security and integrity of the platform, including preventing abuse.</li>
+          <li>To improve our courses and platform based on aggregate usage patterns.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">4. How we protect your data</h2>
+        <p>Your data is stored with Supabase and protected by Row Level Security (RLS) policies enforced at the database level — meaning your private records (progress, submissions, payments, notifications) are only readable by you, your course instructor where relevant, or a platform administrator. Passwords are handled entirely by Supabase Auth and are never stored in plain text.</p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">5. Sharing of information</h2>
+        <p>We do not sell your personal information. We share data only:</p>
+        <ul class="list-disc pl-5 space-y-2 mt-2">
+          <li>With the instructor of a course you're enrolled in, limited to what's needed to grade your work and answer your questions.</li>
+          <li>With service providers who help us operate the platform (hosting, database, payment processing), under confidentiality obligations.</li>
+          <li>When required by law or to protect the rights, safety, and property of our users or the platform.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">6. Your rights</h2>
+        <p>You can review and update most of your information directly from your Profile & Settings page. You can request a copy of your data or ask us to delete your account by contacting us — see the Contact page. Some records (such as payment history) may be retained as required by law even after account deletion.</p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">7. Cookies</h2>
+        <p>We use essential cookies/local storage to keep you signed in and remember your session. We don't use third-party advertising trackers.</p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">8. Children's privacy</h2>
+        <p>The platform is not directed at children under 13, and we do not knowingly collect personal information from children under that age.</p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">9. Changes to this policy</h2>
+        <p>We may update this policy from time to time. We'll update the "Last updated" date above when we do, and material changes will be communicated through the platform.</p>
+      </section>
+
+      <section>
+        <h2 class="font-display text-lg font-bold text-[#1c1d1f] mb-3">10. Contact us</h2>
+        <p>Questions about this policy? Reach out through our <a href="contact.html" class="text-[#A435F0] font-semibold hover:underline">Contact page</a>.</p>
+      </section>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("");
+    tcpRenderFooter("");
+  </script>
+</body>
+</html>

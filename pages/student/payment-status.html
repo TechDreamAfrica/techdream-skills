@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment status — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-md mx-auto px-4 py-20 text-center">
+    <div id="state-pending">
+      <div class="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-7 h-7 text-[#A435F0] animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+      </div>
+      <h1 class="font-display text-2xl font-bold">Confirming your payment…</h1>
+      <p class="text-gray-500 mt-2 text-sm">Hubtel is finalizing your transaction. This usually takes a few seconds — please don't close this page.</p>
+      <p id="pending-timer" class="text-xs text-gray-400 mt-6"></p>
+    </div>
+
+    <div id="state-success" class="hidden">
+      <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+      </div>
+      <h1 id="success-heading" class="font-display text-2xl font-bold">Payment successful!</h1>
+      <p id="success-message" class="text-gray-500 mt-2 text-sm">You're enrolled. Time to start learning.</p>
+      <a id="go-to-course-btn" href="#" class="tcp-btn-primary inline-block mt-6">Go to course</a>
+    </div>
+
+    <div id="state-failed" class="hidden">
+      <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+      </div>
+      <h1 class="font-display text-2xl font-bold">Payment didn't go through</h1>
+      <p class="text-gray-500 mt-2 text-sm">You haven't been charged for anything that failed. You can try again from the course page.</p>
+      <a id="back-to-course-btn" href="../../courses.html" class="tcp-btn-primary inline-block mt-6">Back to courses</a>
+    </div>
+
+    <div id="state-timeout" class="hidden">
+      <div class="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+      </div>
+      <h1 class="font-display text-2xl font-bold">Still processing</h1>
+      <p class="text-gray-500 mt-2 text-sm">This is taking longer than usual. If money left your account, your enrollment will appear automatically once Hubtel confirms it — check My Courses in a few minutes, or refresh this page.</p>
+      <div class="flex items-center justify-center gap-3 mt-6">
+        <button id="refresh-btn" class="tcp-btn-secondary">Check again</button>
+        <a href="my-courses.html" class="tcp-btn-primary">My Courses</a>
+      </div>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const clientReference = new URLSearchParams(window.location.search).get("ref");
+    const isTopUp = new URLSearchParams(window.location.search).get("type") === "topup";
+    const POLL_INTERVAL_MS = 3000;
+    const TIMEOUT_MS = 60000;
+    let elapsed = 0;
+    let pollTimer = null;
+
+    function showState(name) {
+      ["pending", "success", "failed", "timeout"].forEach((s) =>
+        document.getElementById(`state-${s}`).classList.toggle("hidden", s !== name)
+      );
+    }
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      if (!clientReference) return showState("failed");
+
+      document.getElementById("refresh-btn").addEventListener("click", () => {
+        elapsed = 0;
+        showState("pending");
+        poll();
+      });
+
+      poll();
+    }
+
+    async function poll() {
+      const { data: payment, error } = await tcpSupabase
+        .from("payments")
+        .select("*, courses(id, slug)")
+        .eq("client_reference", clientReference)
+        .maybeSingle();
+
+      if (error || !payment) {
+        showState("failed");
+        return;
+      }
+
+      if (payment.status === "succeeded") {
+        showState("success");
+        const btn = document.getElementById("go-to-course-btn");
+        if (isTopUp || payment.payment_type === "wallet_topup") {
+          document.getElementById("success-heading").textContent = "Wallet topped up!";
+          document.getElementById("success-message").textContent = `GHS ${Number(payment.amount).toFixed(2)} was added to your balance.`;
+          btn.textContent = "Go to wallet";
+          btn.href = "wallet.html";
+        } else {
+          btn.textContent = "Go to course";
+          btn.href = `course-player.html?course=${payment.course_id}`;
+        }
+        return;
+      }
+
+      if (payment.status === "failed") {
+        showState("failed");
+        const back = document.getElementById("back-to-course-btn");
+        if (isTopUp || payment.payment_type === "wallet_topup") {
+          back.textContent = "Back to wallet";
+          back.href = "wallet.html";
+        } else if (payment.courses?.slug) {
+          back.href = `../../course-details.html?slug=${payment.courses.slug}`;
+        }
+        return;
+      }
+
+      // Still pending — keep polling until we hit the timeout.
+      elapsed += POLL_INTERVAL_MS;
+      document.getElementById("pending-timer").textContent = `Checking… (${Math.round(elapsed / 1000)}s)`;
+      if (elapsed >= TIMEOUT_MS) {
+        showState("timeout");
+        return;
+      }
+      pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+    }
+
+    init();
+  </script>
+</body>
+</html>

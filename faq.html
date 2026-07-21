@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAQ — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <h1 class="font-display text-3xl font-bold text-center">Frequently asked questions</h1>
+    <p class="text-center text-gray-500 mt-3">Can't find what you're looking for? <a href="contact.html" class="text-[#A435F0] font-semibold hover:underline">Contact us</a>.</p>
+
+    <div class="mt-12 divide-y divide-gray-200 border-t border-b border-gray-200">
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          How do I enroll in a course?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">Open any course page and click "Enroll now." Free courses give you instant access; paid courses walk you through a short checkout first. You'll need an account — sign up is free.</p>
+      </details>
+
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          Do courses expire?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">No. Once you're enrolled, you keep access to that course's lessons, resources, and updates for as long as your account exists.</p>
+      </details>
+
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          How do certificates work?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">Certificates are issued automatically once you mark every lesson in a course complete. You can view, print, or save it as a PDF from the Certificates page in your dashboard.</p>
+      </details>
+
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          Can I get a refund?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">Reach out through the <a href="contact.html" class="text-[#A435F0] hover:underline">contact page</a> within 14 days of purchase and we'll take care of it.</p>
+      </details>
+
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          How do assignments get graded?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">You upload your work (PDF, ZIP, DOCX, images, or code files) from the Assignments page. A real instructor reviews it and leaves a score and written feedback — you'll get a notification when it's ready.</p>
+      </details>
+
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          I want to teach a course — how do I become an instructor?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">Select "Instructor" when you sign up, or <a href="contact.html" class="text-[#A435F0] hover:underline">contact us</a> if you already have a student account and want to switch.</p>
+      </details>
+
+      <details class="group py-5">
+        <summary class="flex items-center justify-between cursor-pointer list-none font-medium">
+          Are live classes recorded?
+          <span class="text-gray-400 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
+        </summary>
+        <p class="text-sm text-gray-600 mt-3">Most are. If a replay is available, you'll find it on the Live Classes page under "Past & replays" shortly after the session ends.</p>
+      </details>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("");
+    tcpRenderFooter("");
+  </script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Curriculum Builder — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="admin-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0 max-w-3xl">
+      <a id="back-to-edit" href="#" class="text-sm text-gray-500 hover:text-[#A435F0]">← Back to course details</a>
+      <div class="flex items-center justify-between gap-4 mt-2 mb-8 flex-wrap">
+        <div>
+          <h1 id="course-title" class="font-display text-2xl font-bold">Curriculum</h1>
+          <p class="text-gray-500 text-sm mt-1">Add sections, then add lessons inside each section.</p>
+        </div>
+        <button id="add-section-btn" class="tcp-btn-primary text-sm">+ Add section</button>
+      </div>
+
+      <div id="sections-list" class="space-y-6"></div>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/admin-nav.js"></script>
+  <script src="../../assets/js/cloudinary.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    const courseId = new URLSearchParams(window.location.search).get("course");
+    let course, sections = [];
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: "admin" });
+      if (!profile) return;
+      renderAdminSidebar("admin-sidebar", "courses", "");
+      if (!courseId) return (window.location.href = "courses.html");
+
+      const { data, error } = await tcpSupabase.from("courses").select("id, title").eq("id", courseId).single();
+      if (error || !data) {
+        tcpToast("Course not found.", "error");
+        return (window.location.href = "courses.html");
+      }
+      course = data;
+      document.getElementById("course-title").textContent = `Curriculum — ${course.title}`;
+      document.getElementById("back-to-edit").href = `course-edit.html?course=${courseId}`;
+
+      document.getElementById("add-section-btn").addEventListener("click", () => openSectionModal());
+      loadSections();
+    }
+
+    async function loadSections() {
+      const el = document.getElementById("sections-list");
+      el.innerHTML = tcpSkeletonCards(2);
+      const { data } = await tcpSupabase
+        .from("course_sections")
+        .select("*, lessons(*)")
+        .eq("course_id", courseId)
+        .order("position");
+      sections = (data || []).map((s) => ({ ...s, lessons: (s.lessons || []).sort((a, b) => a.position - b.position) }));
+      render();
+    }
+
+    function render() {
+      const el = document.getElementById("sections-list");
+      if (sections.length === 0) {
+        el.innerHTML = tcpEmptyState({
+          title: "No sections yet",
+          message: "Add your first section to start building the curriculum.",
+        });
+        return;
+      }
+
+      el.innerHTML = sections
+        .map(
+          (s, sIdx) => `
+        <div class="tcp-card overflow-hidden">
+          <div class="flex items-center justify-between gap-3 px-5 py-4 bg-gray-50">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="flex flex-col gap-0.5 shrink-0">
+                <button data-move-section="${s.id}" data-dir="up" class="text-gray-400 hover:text-[#A435F0] disabled:opacity-30" ${sIdx === 0 ? "disabled" : ""}>
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5"/></svg>
+                </button>
+                <button data-move-section="${s.id}" data-dir="down" class="text-gray-400 hover:text-[#A435F0] disabled:opacity-30" ${sIdx === sections.length - 1 ? "disabled" : ""}>
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+                </button>
+              </div>
+              <span class="font-semibold text-sm truncate">${sIdx + 1}. ${s.title}</span>
+              <span class="text-xs text-gray-400 shrink-0">(${s.lessons.length} lesson${s.lessons.length === 1 ? "" : "s"})</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button data-add-lesson="${s.id}" class="text-xs font-semibold text-[#A435F0] hover:underline">+ Add lesson</button>
+              <button data-edit-section="${s.id}" class="text-xs font-semibold text-gray-500 hover:underline">Edit</button>
+              <button data-delete-section="${s.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
+            </div>
+          </div>
+          <div class="divide-y divide-gray-100">
+            ${
+              s.lessons.length === 0
+                ? `<div class="px-5 py-6 text-sm text-gray-400 text-center">No lessons in this section yet.</div>`
+                : s.lessons
+                    .map(
+                      (l, lIdx) => `
+              <div class="flex items-center justify-between gap-3 px-5 py-3">
+                <div class="flex items-center gap-2 min-w-0">
+                  <div class="flex flex-col gap-0.5 shrink-0">
+                    <button data-move-lesson="${l.id}" data-section="${s.id}" data-dir="up" class="text-gray-300 hover:text-[#A435F0] disabled:opacity-20" ${lIdx === 0 ? "disabled" : ""}>
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5"/></svg>
+                    </button>
+                    <button data-move-lesson="${l.id}" data-section="${s.id}" data-dir="down" class="text-gray-300 hover:text-[#A435F0] disabled:opacity-20" ${lIdx === s.lessons.length - 1 ? "disabled" : ""}>
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+                    </button>
+                  </div>
+                  <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>
+                  <span class="text-sm truncate">${l.title}</span>
+                  ${l.is_preview ? '<span class="tcp-badge shrink-0">Preview</span>' : ""}
+                  ${l.video_url ? "" : '<span class="text-xs text-amber-600 shrink-0">No video</span>'}
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-xs text-gray-400">${Math.round((l.duration_seconds || 0) / 60)}m</span>
+                  <button data-edit-lesson="${l.id}" data-section="${s.id}" class="text-xs font-semibold text-gray-500 hover:underline">Edit</button>
+                  <button data-delete-lesson="${l.id}" class="text-xs font-semibold text-red-600 hover:underline">Delete</button>
+                </div>
+              </div>`
+                    )
+                    .join("")
+            }
+          </div>
+        </div>`
+        )
+        .join("");
+
+      attachListeners();
+    }
+
+    function attachListeners() {
+      document.querySelectorAll("[data-edit-section]").forEach((btn) =>
+        btn.addEventListener("click", () => openSectionModal(sections.find((s) => s.id === btn.dataset.editSection)))
+      );
+      document.querySelectorAll("[data-delete-section]").forEach((btn) =>
+        btn.addEventListener("click", () => deleteSection(btn.dataset.deleteSection))
+      );
+      document.querySelectorAll("[data-add-lesson]").forEach((btn) =>
+        btn.addEventListener("click", () => openLessonModal(btn.dataset.addLesson))
+      );
+      document.querySelectorAll("[data-edit-lesson]").forEach((btn) => {
+        const section = sections.find((s) => s.id === btn.dataset.section);
+        const lesson = section?.lessons.find((l) => l.id === btn.dataset.editLesson);
+        btn.addEventListener("click", () => openLessonModal(btn.dataset.section, lesson));
+      });
+      document.querySelectorAll("[data-delete-lesson]").forEach((btn) =>
+        btn.addEventListener("click", () => deleteLesson(btn.dataset.deleteLesson))
+      );
+      document.querySelectorAll("[data-move-section]").forEach((btn) =>
+        btn.addEventListener("click", () => moveSection(btn.dataset.moveSection, btn.dataset.dir))
+      );
+      document.querySelectorAll("[data-move-lesson]").forEach((btn) =>
+        btn.addEventListener("click", () => moveLesson(btn.dataset.section, btn.dataset.moveLesson, btn.dataset.dir))
+      );
+    }
+
+    // ---------- SECTIONS ----------
+
+    function openSectionModal(existing) {
+      const modal = tcpModal({
+        title: existing ? "Edit section" : "Add section",
+        bodyHtml: `<input id="section-title-input" class="tcp-input" placeholder="Section title (e.g. Getting Started)" value="${existing?.title || ""}" />`,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="save-section-btn" class="tcp-btn-primary">${existing ? "Save" : "Add section"}</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelector("#save-section-btn").onclick = async () => {
+        const title = modal.querySelector("#section-title-input").value.trim();
+        if (!title) return;
+        const btn = modal.querySelector("#save-section-btn");
+        btn.disabled = true;
+        if (existing) {
+          await tcpSupabase.from("course_sections").update({ title }).eq("id", existing.id);
+        } else {
+          await tcpSupabase.from("course_sections").insert({ course_id: courseId, title, position: sections.length });
+        }
+        modal.close();
+        tcpToast(existing ? "Section updated." : "Section added.", "success");
+        loadSections();
+      };
+    }
+
+    async function deleteSection(id) {
+      const ok = await tcpConfirm({
+        title: "Delete this section?",
+        message: "This also deletes every lesson inside it.",
+        confirmLabel: "Delete",
+        danger: true,
+      });
+      if (!ok) return;
+      await tcpSupabase.from("course_sections").delete().eq("id", id);
+      tcpToast("Section deleted.", "success");
+      loadSections();
+    }
+
+    async function moveSection(id, dir) {
+      const idx = sections.findIndex((s) => s.id === id);
+      const swapWith = dir === "up" ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= sections.length) return;
+      const a = sections[idx],
+        b = sections[swapWith];
+      await Promise.all([
+        tcpSupabase.from("course_sections").update({ position: b.position }).eq("id", a.id),
+        tcpSupabase.from("course_sections").update({ position: a.position }).eq("id", b.id),
+      ]);
+      loadSections();
+    }
+
+    // ---------- LESSONS ----------
+
+    let currentLessonVideoUrl = null;
+    let currentLessonResources = [];
+
+    function openLessonModal(sectionId, existing) {
+      currentLessonVideoUrl = existing?.video_url || null;
+      currentLessonResources = existing?.resources ? [...existing.resources] : [];
+
+      const modal = tcpModal({
+        title: existing ? "Edit lesson" : "Add lesson",
+        bodyHtml: `
+          <form id="lesson-form" class="space-y-3">
+            <input name="title" required class="tcp-input" placeholder="Lesson title" value="${existing?.title || ""}" />
+            <textarea name="content" rows="3" class="tcp-input" placeholder="Written summary shown under the video (optional)">${existing?.content || ""}</textarea>
+
+            <div>
+              <label class="text-sm font-medium block mb-1">Lesson video</label>
+              <div id="lesson-video-preview" class="text-xs text-gray-500 mb-2">${
+                currentLessonVideoUrl ? "Video attached ✓" : "No video attached"
+              }</div>
+              <input type="file" id="lesson-video-input" accept="video/*" class="text-sm" />
+              <div id="lesson-video-progress" class="hidden mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#A435F0]" style="width:0%"></div></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm font-medium block mb-1">Duration (minutes)</label>
+                <input name="duration_minutes" type="number" min="0" class="tcp-input" value="${Math.round((existing?.duration_seconds || 0) / 60)}" />
+              </div>
+              <div class="flex items-center gap-2 pt-6">
+                <input type="checkbox" name="is_preview" id="is-preview-checkbox" ${existing?.is_preview ? "checked" : ""} />
+                <label for="is-preview-checkbox" class="text-sm">Free preview lesson</label>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-sm font-medium block mb-1">Downloadable resources</label>
+              <div id="resources-list" class="space-y-1 mb-2"></div>
+              <input type="file" id="resource-input" class="text-sm" />
+              <div id="resource-progress" class="hidden mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#A435F0]" style="width:0%"></div></div>
+            </div>
+          </form>
+        `,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="save-lesson-btn" class="tcp-btn-primary">${existing ? "Save" : "Add lesson"}</button>
+        `,
+      });
+
+      renderResourcesList(modal);
+
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+
+      modal.querySelector("#lesson-video-input").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const progressWrap = modal.querySelector("#lesson-video-progress");
+        const bar = progressWrap.querySelector("div");
+        progressWrap.classList.remove("hidden");
+        try {
+          const result = await uploadVideoToCloudinary(file, "tcp/lessons", (pct) => (bar.style.width = pct + "%"));
+          currentLessonVideoUrl = result.secure_url;
+          modal.querySelector("#lesson-video-preview").textContent = "Video attached ✓";
+          if (result.duration) {
+            modal.querySelector('input[name="duration_minutes"]').value = Math.round(result.duration / 60);
+          }
+          tcpToast("Video uploaded.", "success");
+        } catch (err) {
+          tcpToast("Video upload failed: " + err.message, "error");
+        } finally {
+          progressWrap.classList.add("hidden");
+          bar.style.width = "0%";
+        }
+      });
+
+      modal.querySelector("#resource-input").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const progressWrap = modal.querySelector("#resource-progress");
+        const bar = progressWrap.querySelector("div");
+        progressWrap.classList.remove("hidden");
+        try {
+          const result = await uploadRawToCloudinary(file, "tcp/resources", (pct) => (bar.style.width = pct + "%"));
+          currentLessonResources.push({ name: file.name, url: result.secure_url });
+          renderResourcesList(modal);
+          tcpToast("Resource uploaded.", "success");
+        } catch (err) {
+          tcpToast("Resource upload failed: " + err.message, "error");
+        } finally {
+          progressWrap.classList.add("hidden");
+          bar.style.width = "0%";
+          e.target.value = "";
+        }
+      });
+
+      modal.querySelector("#save-lesson-btn").onclick = async () => {
+        const form = modal.querySelector("#lesson-form");
+        if (!form.reportValidity()) return;
+        const data = Object.fromEntries(new FormData(form));
+        const payload = {
+          title: data.title,
+          content: data.content,
+          video_url: currentLessonVideoUrl,
+          duration_seconds: (Number(data.duration_minutes) || 0) * 60,
+          is_preview: form.querySelector("#is-preview-checkbox").checked,
+          resources: currentLessonResources,
+        };
+        const btn = modal.querySelector("#save-lesson-btn");
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        try {
+          if (existing) {
+            const { error } = await tcpSupabase.from("lessons").update(payload).eq("id", existing.id);
+            if (error) throw error;
+          } else {
+            const section = sections.find((s) => s.id === sectionId);
+            const { error } = await tcpSupabase.from("lessons").insert({
+              ...payload,
+              section_id: sectionId,
+              course_id: courseId,
+              position: section ? section.lessons.length : 0,
+            });
+            if (error) throw error;
+          }
+          modal.close();
+          tcpToast(existing ? "Lesson updated." : "Lesson added.", "success");
+          loadSections();
+        } catch (err) {
+          tcpToast("Couldn't save lesson: " + err.message, "error");
+          btn.disabled = false;
+          btn.textContent = existing ? "Save" : "Add lesson";
+        }
+      };
+    }
+
+    function renderResourcesList(modal) {
+      const el = modal.querySelector("#resources-list");
+      if (currentLessonResources.length === 0) {
+        el.innerHTML = `<p class="text-xs text-gray-400">No resources attached yet.</p>`;
+        return;
+      }
+      el.innerHTML = currentLessonResources
+        .map(
+          (r, i) => `
+        <div class="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-1.5">
+          <span class="truncate">${r.name}</span>
+          <button type="button" data-remove-resource="${i}" class="text-red-500 hover:text-red-700 shrink-0 ml-2">✕</button>
+        </div>`
+        )
+        .join("");
+      el.querySelectorAll("[data-remove-resource]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          currentLessonResources.splice(Number(btn.dataset.removeResource), 1);
+          renderResourcesList(modal);
+        })
+      );
+    }
+
+    async function deleteLesson(id) {
+      const ok = await tcpConfirm({ title: "Delete this lesson?", confirmLabel: "Delete", danger: true });
+      if (!ok) return;
+      await tcpSupabase.from("lessons").delete().eq("id", id);
+      tcpToast("Lesson deleted.", "success");
+      loadSections();
+    }
+
+    async function moveLesson(sectionId, lessonId, dir) {
+      const section = sections.find((s) => s.id === sectionId);
+      if (!section) return;
+      const idx = section.lessons.findIndex((l) => l.id === lessonId);
+      const swapWith = dir === "up" ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= section.lessons.length) return;
+      const a = section.lessons[idx],
+        b = section.lessons[swapWith];
+      await Promise.all([
+        tcpSupabase.from("lessons").update({ position: b.position }).eq("id", a.id),
+        tcpSupabase.from("lessons").update({ position: a.position }).eq("id", b.id),
+      ]);
+      loadSections();
+    }
+
+    init();
+  </script>
+</body>
+</html>

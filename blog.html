@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="text-center mb-12">
+      <h1 class="font-display text-3xl font-bold">From the blog</h1>
+      <p class="text-gray-500 mt-3">Notes on learning to code, teaching, and building things that ship.</p>
+    </div>
+
+    <div id="posts-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("");
+    tcpRenderFooter("");
+
+    // The schema doesn't include a blog_posts table yet, so this page ships
+    // with placeholder posts you can edit directly below. If you want a real
+    // CMS-backed blog, ask for a `blog_posts` table + admin editor to be added.
+    const POSTS = [
+      {
+        title: "Why we grade every assignment by hand",
+        excerpt: "Multiple-choice quizzes are easy to build and easy to game. Here's why real code review changes how people learn.",
+        tag: "Teaching",
+        date: "2026-06-02",
+      },
+      {
+        title: "From tutorial hell to your first pull request",
+        excerpt: "A practical path for going from 'I finished the course' to 'I shipped a feature at work.'",
+        tag: "Careers",
+        date: "2026-05-18",
+      },
+      {
+        title: "Designing a curriculum around real projects",
+        excerpt: "How we structure each course so every lesson builds toward something you can put in a portfolio.",
+        tag: "Behind the scenes",
+        date: "2026-04-30",
+      },
+      {
+        title: "PostgreSQL indexes, explained without the jargon",
+        excerpt: "A plain-language walkthrough of when an index helps, when it hurts, and how to tell the difference.",
+        tag: "Engineering",
+        date: "2026-04-11",
+      },
+      {
+        title: "What makes a good coding exercise",
+        excerpt: "The difference between an exercise that teaches and one that just wastes your afternoon.",
+        tag: "Teaching",
+        date: "2026-03-22",
+      },
+      {
+        title: "Live classes vs. recorded video: when each works best",
+        excerpt: "We use both. Here's how we decide which format fits a given topic.",
+        tag: "Behind the scenes",
+        date: "2026-03-05",
+      },
+    ];
+
+    document.getElementById("posts-grid").innerHTML = POSTS.map(
+      (p) => `
+      <article class="tcp-card p-6 flex flex-col">
+        <span class="tcp-badge w-fit">${p.tag}</span>
+        <h2 class="font-semibold mt-3 leading-snug">${p.title}</h2>
+        <p class="text-sm text-gray-600 mt-2 flex-1">${p.excerpt}</p>
+        <p class="text-xs text-gray-400 mt-4">${new Date(p.date).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</p>
+      </article>`
+    ).join("");
+  </script>
+</body>
+</html>

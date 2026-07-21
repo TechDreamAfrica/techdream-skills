@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="text-center mb-12">
+      <h1 class="font-display text-3xl sm:text-4xl font-bold">Simple, pay-per-course pricing</h1>
+      <p class="mt-4 text-lg text-gray-600 max-w-xl mx-auto">No subscriptions required — buy the courses you want, keep them forever.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="tcp-card p-8 flex flex-col">
+        <h2 class="font-semibold text-lg">Free courses</h2>
+        <p class="text-3xl font-bold mt-3">$0</p>
+        <p class="text-sm text-gray-500 mt-1">Forever</p>
+        <ul class="mt-6 space-y-3 text-sm text-gray-600 flex-1">
+          <li class="flex gap-2">✓ Full lesson access</li>
+          <li class="flex gap-2">✓ Quizzes & exercises</li>
+          <li class="flex gap-2">✓ Community discussion</li>
+        </ul>
+        <a href="courses.html?price=free" class="tcp-btn-secondary text-center mt-6">Browse free courses</a>
+      </div>
+
+      <div class="tcp-card p-8 flex flex-col border-2 border-[#A435F0] relative">
+        <span class="tcp-badge absolute -top-3 left-8">Most popular</span>
+        <h2 class="font-semibold text-lg">Individual courses</h2>
+        <p class="text-3xl font-bold mt-3">From $19.99</p>
+        <p class="text-sm text-gray-500 mt-1">One-time payment, lifetime access</p>
+        <ul class="mt-6 space-y-3 text-sm text-gray-600 flex-1">
+          <li class="flex gap-2">✓ Everything in Free</li>
+          <li class="flex gap-2">✓ Graded assignments & feedback</li>
+          <li class="flex gap-2">✓ Downloadable resources</li>
+          <li class="flex gap-2">✓ Certificate of completion</li>
+          <li class="flex gap-2">✓ Live class access (where offered)</li>
+        </ul>
+        <a href="courses.html" class="tcp-btn-primary text-center mt-6">Browse all courses</a>
+      </div>
+
+      <div class="tcp-card p-8 flex flex-col">
+        <h2 class="font-semibold text-lg">Teams & organizations</h2>
+        <p class="text-3xl font-bold mt-3">Custom</p>
+        <p class="text-sm text-gray-500 mt-1">Volume pricing for 5+ seats</p>
+        <ul class="mt-6 space-y-3 text-sm text-gray-600 flex-1">
+          <li class="flex gap-2">✓ Bulk course licenses</li>
+          <li class="flex gap-2">✓ Progress reporting for managers</li>
+          <li class="flex gap-2">✓ Dedicated onboarding support</li>
+        </ul>
+        <a href="contact.html" class="tcp-btn-secondary text-center mt-6">Contact sales</a>
+      </div>
+    </div>
+
+    <div class="mt-16 max-w-2xl mx-auto text-center">
+      <h2 class="font-display text-xl font-bold mb-3">Questions about pricing?</h2>
+      <p class="text-gray-600 text-sm">Check our <a href="faq.html" class="text-[#A435F0] font-semibold hover:underline">FAQ</a> or <a href="contact.html" class="text-[#A435F0] font-semibold hover:underline">get in touch</a> — we're happy to help.</p>
+    </div>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("");
+    tcpRenderFooter("");
+  </script>
+</body>
+</html>

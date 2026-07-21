@@ -167,12 +167,13 @@
       const struck = c.discount_price != null && c.discount_price < c.price;
       return `
         <a href="course-details.html?slug=${c.slug}" class="tcp-card overflow-hidden flex flex-col">
-          <div class="h-40 bg-gray-100 flex items-center justify-center">
+          <div class="h-40 bg-gray-100 flex items-center justify-center relative">
             ${
               c.thumbnail
                 ? `<img src="${c.thumbnail}" alt="${c.title}" class="w-full h-full object-cover" />`
                 : `<svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>`
             }
+            ${c.teaser_video_url ? `<span class="absolute bottom-2 left-2 tcp-badge bg-black/60 text-white flex items-center gap-1"><svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>Preview</span>` : ""}
           </div>
           <div class="p-4 flex flex-col gap-1.5 flex-1">
             <p class="font-semibold text-sm leading-snug line-clamp-2">${c.title}</p>
@@ -181,8 +182,8 @@
               ${c.rating_avg?.toFixed?.(1) ?? "New"} <span class="text-gray-400 font-normal">(${c.rating_count || 0})</span>
             </div>
             <div class="mt-auto pt-1 font-bold text-sm">
-              $${Number(price).toFixed(2)}
-              ${struck ? `<span class="text-gray-400 line-through font-normal ml-1">$${Number(c.price).toFixed(2)}</span>` : ""}
+              ${Number(price) === 0 ? "Free" : `GHS ${Number(price).toFixed(2)}`}
+              ${struck ? `<span class="text-gray-400 line-through font-normal ml-1">GHS ${Number(c.price).toFixed(2)}</span>` : ""}
             </div>
           </div>
         </a>`;

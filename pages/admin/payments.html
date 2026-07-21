@@ -91,7 +91,7 @@
 
       const succeeded = (data || []).filter((p) => p.status === "succeeded");
       const other = (data || []).filter((p) => p.status !== "succeeded");
-      document.getElementById("stat-total").textContent = `$${succeeded.reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}`;
+      document.getElementById("stat-total").textContent = `GHS ${succeeded.reduce((s, p) => s + Number(p.amount), 0).toFixed(2)}`;
       document.getElementById("stat-succeeded").textContent = succeeded.length;
       document.getElementById("stat-other").textContent = other.length;
 
@@ -106,7 +106,7 @@
         <tr>
           <td class="px-5 py-3 font-medium">${p.profiles?.fullname || "—"}</td>
           <td class="px-5 py-3 text-gray-500">${p.courses?.title || "—"}</td>
-          <td class="px-5 py-3 font-medium">$${Number(p.amount).toFixed(2)}</td>
+          <td class="px-5 py-3 font-medium">GHS ${Number(p.amount).toFixed(2)}</td>
           <td class="px-5 py-3">${statusBadge(p.status)}</td>
           <td class="px-5 py-3 text-gray-500">${new Date(p.created_at).toLocaleDateString()}</td>
           <td class="px-5 py-3 text-gray-400 text-xs font-mono">${p.provider_reference || "—"}</td>

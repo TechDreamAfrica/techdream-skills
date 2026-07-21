@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <main>
+    <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+      <span class="tcp-badge mb-5">About us</span>
+      <h1 class="font-display text-3xl sm:text-4xl font-bold leading-tight">We teach software the way it's actually built.</h1>
+      <p class="mt-5 text-lg text-gray-600 max-w-2xl mx-auto">
+        The Coding Professionals is a project-based learning platform for people who want to ship real software — not just watch someone else code.
+      </p>
+    </section>
+
+    <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid sm:grid-cols-3 gap-6 pb-16">
+      <div class="tcp-card p-6 text-center">
+        <p class="font-display text-3xl font-bold text-[#A435F0]">120+</p>
+        <p class="text-sm text-gray-500 mt-1">Courses</p>
+      </div>
+      <div class="tcp-card p-6 text-center">
+        <p class="font-display text-3xl font-bold text-[#A435F0]">40k+</p>
+        <p class="text-sm text-gray-500 mt-1">Students taught</p>
+      </div>
+      <div class="tcp-card p-6 text-center">
+        <p class="font-display text-3xl font-bold text-[#A435F0]">4.7</p>
+        <p class="text-sm text-gray-500 mt-1">Average course rating</p>
+      </div>
+    </section>
+
+    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      <h2 class="font-display text-2xl font-bold mb-4">Our story</h2>
+      <p class="text-gray-600 leading-relaxed">
+        We started The Coding Professionals because too many programming courses stop at "here's the syntax." Our instructors are working engineers who build production systems — so every course is built around a real project, graded assignments, and feedback that actually helps you improve, not just a certificate for watching videos to the end.
+      </p>
+    </section>
+
+    <section class="bg-gray-50 py-16">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="font-display text-2xl font-bold mb-3">What we care about</h2>
+        <div class="grid sm:grid-cols-3 gap-6 mt-8 text-left">
+          <div>
+            <h3 class="font-semibold mb-2">Depth over hype</h3>
+            <p class="text-sm text-gray-600">We'd rather teach you to actually debug a broken API than show you a slide about REST.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Feedback that helps</h3>
+            <p class="text-sm text-gray-600">Real instructors grade real submissions — assignments, code exercises, and quizzes that mean something.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Access for everyone</h3>
+            <p class="text-sm text-gray-600">A mix of free and paid courses so cost is never the only thing standing between you and a new skill.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+      <h2 class="font-display text-2xl font-bold mb-3">Ready to start learning?</h2>
+      <a href="courses.html" class="tcp-btn-primary inline-block mt-2">Browse courses</a>
+    </section>
+  </main>
+
+  <div id="tcp-footer"></div>
+
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/partials.js"></script>
+  <script>
+    tcpRenderHeader("");
+    tcpRenderFooter("");
+  </script>
+</body>
+</html>

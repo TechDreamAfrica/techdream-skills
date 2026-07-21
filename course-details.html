@@ -42,9 +42,14 @@
         <!-- STICKY PURCHASE CARD -->
         <div class="lg:row-span-2">
           <div class="tcp-card bg-white text-[#1c1d1f] p-5 lg:sticky lg:top-24">
-            <div class="h-44 rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center mb-4">
+            <div class="h-44 rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center mb-4 relative">
               <img id="course-thumb" src="" alt="" class="w-full h-full object-cover hidden" />
               <svg id="course-thumb-fallback" class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 8.25 6 3.75-6 3.75V8.25Z"/></svg>
+              <button id="play-teaser-btn" class="hidden absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition">
+                <span class="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-[#1c1d1f] translate-x-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6V4z"/></svg>
+                </span>
+              </button>
             </div>
             <div id="course-price" class="text-2xl font-bold mb-4"></div>
             <button id="enroll-btn" class="tcp-btn-primary w-full">Enroll now</button>
@@ -170,6 +175,18 @@
         document.getElementById("course-thumb").src = course.thumbnail;
         document.getElementById("course-thumb").classList.remove("hidden");
         document.getElementById("course-thumb-fallback").classList.add("hidden");
+      }
+
+      if (course.teaser_video_url) {
+        const playBtn = document.getElementById("play-teaser-btn");
+        playBtn.classList.remove("hidden");
+        playBtn.onclick = () => {
+          const modal = tcpModal({
+            title: "Course preview",
+            bodyHtml: `<video src="${course.teaser_video_url}" controls autoplay class="w-full rounded-lg"></video>`,
+          });
+          modal.querySelector("[data-close]").onclick = () => modal.close();
+        };
       }
 
       document.getElementById("course-duration").innerHTML = `⏱ ${Math.round((course.duration_minutes || 0) / 60)} hours total`;
@@ -386,67 +403,113 @@
       };
     }
 
-    function openCheckoutModal() {
+    async function openCheckoutModal() {
       const price = course.discount_price != null ? course.discount_price : course.price;
+
+      // Free courses need no payment — enroll immediately.
+      if (Number(price) === 0) {
+        enrollFree();
+        return;
+      }
+
+      const session = await TcpAuth.getSession();
+      const { data: wallet } = await tcpSupabase.from("wallets").select("balance").eq("student_id", session.user.id).maybeSingle();
+      const walletBalance = Number(wallet?.balance || 0);
+      const canPayFromWallet = walletBalance >= price;
+
       const modal = tcpModal({
         title: "Complete your enrollment",
         bodyHtml: `
-          <p class="text-sm text-gray-600 mb-4">This is a payment placeholder — no real charge will be made. In production this modal calls a payment provider (Stripe, Paystack, etc.) from your backend.</p>
           <div class="rounded-lg bg-gray-50 p-4 flex items-center justify-between mb-4">
             <span class="text-sm font-medium">${course.title}</span>
-            <span class="font-bold">${Number(price) === 0 ? "Free" : `$${Number(price).toFixed(2)}`}</span>
+            <span class="font-bold">GHS ${Number(price).toFixed(2)}</span>
           </div>
-          <div class="space-y-3">
-            <input class="tcp-input" placeholder="Card number (e.g. 4242 4242 4242 4242)" />
-            <div class="grid grid-cols-2 gap-3">
-              <input class="tcp-input" placeholder="MM / YY" />
-              <input class="tcp-input" placeholder="CVC" />
-            </div>
-          </div>
+          ${
+            canPayFromWallet
+              ? `<div class="rounded-lg border border-[#A435F0] bg-purple-50 p-4 mb-4 flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-semibold">Pay from wallet</p>
+                    <p class="text-xs text-gray-500">Balance: GHS ${walletBalance.toFixed(2)} — instant, no redirect</p>
+                  </div>
+                  <button id="pay-wallet-btn" class="tcp-btn-primary text-sm !py-2">Pay now</button>
+                </div>
+                <p class="text-xs text-gray-400 text-center mb-2">or</p>`
+              : `<p class="text-xs text-gray-500 mb-4">Wallet balance: GHS ${walletBalance.toFixed(2)} — <a href="pages/student/wallet.html" class="text-[#A435F0] hover:underline">top up</a> to pay instantly next time.</p>`
+          }
+          <p class="text-sm text-gray-600">You'll be taken to Hubtel's secure checkout to pay by Mobile Money, card, or bank. You'll be enrolled automatically once payment is confirmed.</p>
         `,
         footerHtml: `
           <button data-close class="tcp-btn-secondary">Cancel</button>
-          <button id="confirm-pay" class="tcp-btn-primary">${Number(price) === 0 ? "Enroll for free" : "Pay & enroll"}</button>
+          <button id="confirm-pay" class="tcp-btn-primary">Continue to payment</button>
         `,
       });
       modal.querySelector("[data-close]").onclick = () => modal.close();
-      modal.querySelector("#confirm-pay").onclick = () => completeEnrollment(modal, price);
+      modal.querySelector("#confirm-pay").onclick = () => startHubtelCheckout(modal);
+      modal.querySelector("#pay-wallet-btn")?.addEventListener("click", () => payWithWallet(modal));
     }
 
-    async function completeEnrollment(modal, price) {
-      const btn = modal.querySelector("#confirm-pay");
+    async function payWithWallet(modal) {
+      const btn = modal.querySelector("#pay-wallet-btn");
       btn.disabled = true;
-      btn.textContent = "Processing…";
+      btn.textContent = "Paying…";
+      try {
+        const { data, error } = await tcpSupabase.rpc("pay_course_with_wallet", { p_course_id: course.id });
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Payment failed.");
+        modal.close();
+        tcpToast("Paid from wallet — you're enrolled!", "success");
+        setTimeout(() => (window.location.href = `pages/student/course-player.html?course=${course.id}`), 900);
+      } catch (err) {
+        tcpToast("Couldn't pay from wallet: " + (err.message || "please try again."), "error");
+        btn.disabled = false;
+        btn.textContent = "Pay now";
+      }
+    }
+
+    async function enrollFree() {
       const session = await TcpAuth.getSession();
       try {
-        if (price > 0) {
-          await tcpSupabase.from("payments").insert({
-            student_id: session.user.id,
-            course_id: course.id,
-            amount: price,
-            status: "succeeded",
-            provider_reference: "placeholder_" + Date.now(),
-          });
-        }
         await tcpSupabase.from("enrollments").insert({ student_id: session.user.id, course_id: course.id });
         await tcpSupabase.from("notifications").insert({
           user_id: session.user.id,
           type: "course_purchased",
           title: "You're enrolled!",
           body: `You successfully enrolled in ${course.title}.`,
-          link: `pages/student/course-player.html?course=${course.id}`,
+          link: `/pages/student/course-player.html?course=${course.id}`,
         });
-        modal.close();
         tcpToast("Enrolled! Redirecting to your course…", "success");
-        setTimeout(() => (window.location.href = `pages/student/course-player.html?course=${course.id}`), 1200);
+        setTimeout(() => (window.location.href = `pages/student/course-player.html?course=${course.id}`), 1000);
       } catch (err) {
         tcpToast("Enrollment failed: " + (err.message || "please try again."), "error");
+      }
+    }
+
+    async function startHubtelCheckout(modal) {
+      const btn = modal.querySelector("#confirm-pay");
+      btn.disabled = true;
+      btn.textContent = "Starting checkout…";
+      try {
+        const { data, error } = await tcpSupabase.functions.invoke("hubtel-initiate", {
+          body: { courseId: course.id },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.checkoutUrl) throw new Error("No checkout URL returned.");
+        // Full-page redirect to Hubtel's hosted checkout — the student pays
+        // there, then lands back on payment-status.html once done.
+        window.location.href = data.checkoutUrl;
+      } catch (err) {
+        tcpToast("Couldn't start payment: " + (err.message || "please try again."), "error");
         btn.disabled = false;
-        btn.textContent = "Pay & enroll";
+        btn.textContent = "Continue to payment";
       }
     }
 
     loadCourse();
+
+    if (new URLSearchParams(window.location.search).get("payment") === "cancelled") {
+      tcpToast("Payment cancelled — you weren't charged.", "info");
+    }
   </script>
 </body>
 </html>

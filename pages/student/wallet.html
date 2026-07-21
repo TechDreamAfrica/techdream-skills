@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet — The Coding Professionals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/main.css" />
+</head>
+<body class="bg-white text-[#1c1d1f]">
+  <div id="tcp-header"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <div id="student-sidebar" class="hidden lg:block w-56 shrink-0"></div>
+
+    <main class="flex-1 min-w-0 max-w-2xl">
+      <h1 class="font-display text-2xl font-bold mb-6">Wallet</h1>
+
+      <section class="tcp-card p-6 mb-8 flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <p class="text-xs text-gray-500">Available balance</p>
+          <p id="balance-amount" class="font-display text-3xl font-bold mt-1">GHS 0.00</p>
+        </div>
+        <button id="top-up-btn" class="tcp-btn-primary">Top up</button>
+      </section>
+
+      <section>
+        <h2 class="font-semibold text-sm text-gray-500 uppercase tracking-wide mb-3">Transaction history</h2>
+        <div id="transactions-list" class="tcp-card divide-y divide-gray-100"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="tcp-footer"></div>
+
+  <script src="../../assets/js/supabase-client.js"></script>
+  <script src="../../assets/js/ui.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/partials.js"></script>
+  <script src="../../assets/js/student-nav.js"></script>
+  <script>
+    tcpRenderHeader("../../");
+    tcpRenderFooter("../../");
+
+    let session;
+
+    async function init() {
+      const profile = await TcpAuth.requireAuth({ role: ["student", "instructor", "admin"] });
+      if (!profile) return;
+      session = await TcpAuth.getSession();
+      renderStudentSidebar("student-sidebar", "wallet", "");
+      document.getElementById("top-up-btn").addEventListener("click", openTopUpModal);
+
+      if (new URLSearchParams(window.location.search).get("payment") === "cancelled") {
+        tcpToast("Top-up cancelled — you weren't charged.", "info");
+      }
+
+      loadBalance();
+      loadTransactions();
+    }
+
+    async function loadBalance() {
+      const { data } = await tcpSupabase.from("wallets").select("balance").eq("student_id", session.user.id).maybeSingle();
+      document.getElementById("balance-amount").textContent = `GHS ${Number(data?.balance || 0).toFixed(2)}`;
+    }
+
+    async function loadTransactions() {
+      const el = document.getElementById("transactions-list");
+      el.innerHTML = tcpSkeletonCards(3);
+      const { data } = await tcpSupabase
+        .from("wallet_transactions")
+        .select("*, courses(title)")
+        .eq("student_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!data || data.length === 0) {
+        el.innerHTML = tcpEmptyState({ title: "No transactions yet", message: "Top up your wallet to pay for courses instantly, no redirect needed." });
+        return;
+      }
+
+      const LABELS = {
+        topup: { label: "Wallet top-up", color: "text-emerald-600" },
+        course_payment: { label: "Course purchase", color: "text-gray-700" },
+        refund: { label: "Refund", color: "text-emerald-600" },
+      };
+
+      el.innerHTML = data
+        .map((t) => {
+          const meta = LABELS[t.type] || { label: t.type, color: "text-gray-700" };
+          const isCredit = Number(t.amount) >= 0;
+          return `
+          <div class="flex items-center justify-between px-5 py-4">
+            <div>
+              <p class="text-sm font-medium">${meta.label}${t.courses?.title ? ` — ${t.courses.title}` : ""}</p>
+              <p class="text-xs text-gray-400 mt-0.5">${new Date(t.created_at).toLocaleString()}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-semibold ${isCredit ? "text-emerald-600" : "text-gray-700"}">${isCredit ? "+" : ""}GHS ${Number(t.amount).toFixed(2)}</p>
+              <p class="text-xs text-gray-400">Balance: GHS ${Number(t.balance_after).toFixed(2)}</p>
+            </div>
+          </div>`;
+        })
+        .join("");
+    }
+
+    function openTopUpModal() {
+      const modal = tcpModal({
+        title: "Top up your wallet",
+        bodyHtml: `
+          <p class="text-sm text-gray-600 mb-4">You'll be taken to Hubtel's secure checkout to pay by Mobile Money, card, or bank. Your balance updates automatically once payment is confirmed.</p>
+          <label class="text-sm font-medium block mb-1">Amount (GHS)</label>
+          <input id="topup-amount-input" type="number" min="1" step="1" class="tcp-input" placeholder="e.g. 50" />
+          <div class="flex gap-2 mt-3">
+            ${[20, 50, 100, 200].map((v) => `<button type="button" data-amount="${v}" class="quick-amount-btn tcp-btn-secondary text-xs !py-1.5 !px-3">GHS ${v}</button>`).join("")}
+          </div>
+        `,
+        footerHtml: `
+          <button data-close class="tcp-btn-secondary">Cancel</button>
+          <button id="confirm-topup-btn" class="tcp-btn-primary">Continue to payment</button>
+        `,
+      });
+      modal.querySelector("[data-close]").onclick = () => modal.close();
+      modal.querySelectorAll(".quick-amount-btn").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          modal.querySelector("#topup-amount-input").value = btn.dataset.amount;
+        })
+      );
+      modal.querySelector("#confirm-topup-btn").onclick = () => startTopUp(modal);
+    }
+
+    async function startTopUp(modal) {
+      const amount = Number(modal.querySelector("#topup-amount-input").value);
+      if (!(amount > 0)) {
+        tcpToast("Enter a valid amount.", "error");
+        return;
+      }
+      const btn = modal.querySelector("#confirm-topup-btn");
+      btn.disabled = true;
+      btn.textContent = "Starting checkout…";
+      try {
+        const { data, error } = await tcpSupabase.functions.invoke("hubtel-initiate", {
+          body: { topupAmount: amount },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.checkoutUrl) throw new Error("No checkout URL returned.");
+        window.location.href = data.checkoutUrl;
+      } catch (err) {
+        tcpToast("Couldn't start top-up: " + (err.message || "please try again."), "error");
+        btn.disabled = false;
+        btn.textContent = "Continue to payment";
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
