@@ -167,7 +167,7 @@
       const price = course.discount_price != null ? course.discount_price : course.price;
       const struck = course.discount_price != null && course.discount_price < course.price;
       document.getElementById("course-price").innerHTML = `
-        ${Number(price) === 0 ? "Free" : `$${Number(price).toFixed(2)}`}
+        ${Number(price) === 0 ? "Free" : `GHS ${Number(price).toFixed(2)}`}
         ${struck ? `<span class="text-gray-400 line-through font-normal text-base ml-2">$${Number(course.price).toFixed(2)}</span>` : ""}
       `;
 
