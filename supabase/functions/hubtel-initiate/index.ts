@@ -26,7 +26,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+
+if (!ANON_KEY) {
+  return json(
+    { error: "SUPABASE_ANON_KEY secret is missing." },
+    500
+  );
+}
 const HUBTEL_CLIENT_ID = Deno.env.get("HUBTEL_CLIENT_ID")!;
 const HUBTEL_CLIENT_SECRET = Deno.env.get("HUBTEL_CLIENT_SECRET")!;
 const HUBTEL_MERCHANT_ACCOUNT_NUMBER = Deno.env.get("HUBTEL_MERCHANT_ACCOUNT_NUMBER")!;

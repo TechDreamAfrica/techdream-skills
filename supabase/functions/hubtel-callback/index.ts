@@ -21,7 +21,8 @@
 // What it does on a successful payment:
 //   1. Looks up the `pending` payment row by clientReference.
 //   2. Marks it `succeeded`.
-//   3. Creates the enrollment (if not already present).
+//   3. Creates the enrollment (if not already present) — or, for a wallet
+//      top-up, credits the wallet balance instead.
 //   4. Sends the student a notification.
 // On a failed/cancelled payment, marks the row `failed`.
 // ============================================================================
